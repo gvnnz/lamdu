@@ -17,6 +17,7 @@ import           GUI.Momentu.Responsive.TaggedList (TaggedItem(..), taggedList)
 import qualified GUI.Momentu.Widget as Widget
 import qualified GUI.Momentu.Widgets.Grid as Grid
 import qualified GUI.Momentu.Widgets.Spacer as Spacer
+import qualified Lamdu.CharClassification as Chars
 import qualified Lamdu.GUI.Expr.GetVarEdit as GetVarEdit
 import qualified Lamdu.GUI.Expr.TagEdit as TagEdit
 import           Lamdu.GUI.ExpressionGui.Monad (GuiM)
@@ -31,6 +32,7 @@ import qualified Lamdu.I18N.Definitions as Texts
 import qualified Lamdu.I18N.Name as Texts
 import qualified Lamdu.I18N.Navigation as Texts
 import           Lamdu.Name (Name(..))
+import qualified Lamdu.Name as Name
 import qualified Lamdu.Sugar.Types as Sugar
 
 import           Lamdu.Prelude
@@ -111,12 +113,33 @@ makeLabeled ::
     Sugar.Payload Name i o ExprGui.Payload ->
     GuiM env i o (Responsive o)
 makeLabeled apply pl =
-    stdWrapParentExpr pl
-    <*> (makeFuncRow (ExprGui.mParensId pl) apply >>= addBox)
+    case apply ^. Sugar.aSpecialArgs of
+    Sugar.Infix l r |
+        Lens.allOf
+        (val . Lens._Wrapped . Sugar.bvNameRef . Sugar.nrName .
+          Name._NameTag . Name.tnDisplayText . Name.ttText . Lens.each)
+        (`notElem` Chars.operator)
+        func ->
+            (ResponsiveExpr.boxSpacedMDisamb ?? ExprGui.mParensId pl)
+            <*> sequenceA
+            [ GuiM.makeSubexpression l
+            , stdWrapParentExpr pl
+                <*>
+                ( (Options.boxSpaced ?? Options.disambiguationNone)
+                    <*> sequenceA
+                    [ makeFunc GetVarEdit.Infix func
+                    , GuiM.makeSubexpression r
+                    ]
+                    >>= addBox)
+            ]
+    _ ->
+        stdWrapParentExpr pl
+        <*> (makeFuncRow (ExprGui.mParensId pl) apply >>= addBox)
     where
         addBox
             | isBoxed apply = mkBoxed apply
             | otherwise = pure
+        func = apply ^. Sugar.aFunc
 
 makeArgRow ::
     (Monad i, Glue.HasTexts env, Has (Texts.Name Text) env) =>
