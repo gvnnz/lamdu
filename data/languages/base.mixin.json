@@ -3,6 +3,7 @@
         "code": {
             "assign": "=",
             "absurd": "Ø",
+            "infixMethodSymbol": ".",
             "injectSymbol": ":",
             "nullaryInjectSymbol": ".",
             "defer": "|",

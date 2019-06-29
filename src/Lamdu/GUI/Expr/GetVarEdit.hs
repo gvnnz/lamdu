@@ -8,13 +8,10 @@ import           AST (Tree, Ann(..))
 import qualified Control.Lens as Lens
 import qualified Control.Monad.Reader as Reader
 import qualified Data.ByteString.Char8 as SBS8
-import           Data.Vector.Vector2 (Vector2(..))
 import           GUI.Momentu.Align (TextWidget)
 import qualified GUI.Momentu.Align as Align
-import qualified GUI.Momentu.Animation as Anim
 import qualified GUI.Momentu.Direction as Dir
 import qualified GUI.Momentu.Draw as Draw
-import           GUI.Momentu.Element (Element)
 import qualified GUI.Momentu.Element as Element
 import           GUI.Momentu.EventMap (EventMap)
 import qualified GUI.Momentu.EventMap as E
@@ -104,29 +101,6 @@ makeParamsRecord myId paramsRecordVar =
     where
         Sugar.ParamsRecordVarRef fieldNames = paramsRecordVar
 
-infixMarker :: Vector2 Anim.R -> Draw.Image
-infixMarker (Vector2 w h) =
-    () <$
-    mconcat
-    [ Draw.line (x, 0) (0,x)
-    , Draw.line (w-x, 0) (w,x)
-    , Draw.line (w-x, h) (w,h-x)
-    , Draw.line (x, h) (0,h-x)
-    , Draw.line (0, x) (0, h-x)
-    , Draw.line (w, x) (w, h-x)
-    , Draw.line (x, 0) (w-x, 0)
-    , Draw.line (x, h) (w-x, h)
-    ]
-    where
-        x = min w h / 4
-
-addInfixMarker :: Element a => Widget.Id -> a -> a
-addInfixMarker widgetId =
-    Element.bottomLayer %@~
-    \size -> Anim.singletonFrame 1 frameId (infixMarker size) & flip mappend
-    where
-        frameId = Widget.toAnimId widgetId ++ ["infix"]
-
 data Role = Normal | Infix deriving Eq
 
 navDoc ::
@@ -140,7 +114,7 @@ navDoc env lens =
 makeNameRef ::
     ( Monad i, Monad o
     , Has (Texts.Navigation Text) env
-    , Has (Texts.Name Text) env
+    , Has (Texts.Name Text) env, Has (Texts.Code Text) env
     , Has (MomentuTexts.Texts Text) env
     ) =>
     Role ->
@@ -160,11 +134,12 @@ makeNameRef role color myId nameRef =
                     savePrecursor
                     nameRef ^. Sugar.nrGotoDefinition <&> WidgetIds.fromEntityId
         nameText <- Name.visible name <&> (^. _1 . Name.ttText)
-        let mAddMarker
-                | (role == Infix) == Lens.allOf Lens.each (`elem` Chars.operator) nameText = id
-                | otherwise = addInfixMarker nameId
-        makeSimpleView color name nameId
-            <&> mAddMarker
+        (if (role == Infix) == Lens.allOf Lens.each (`elem` Chars.operator) nameText
+            then pure Element.empty
+            else grammar (label Texts.infixMethodSymbol)
+            )
+            /|/
+            makeSimpleView color name nameId
             <&> Align.tValue %~ Widget.weakerEvents jumpToDefinitionEventMap
     & Reader.local (Element.animIdPrefix .~ Widget.toAnimId nameId)
     & GuiState.assignCursor myId nameId
@@ -316,7 +291,7 @@ makeGetBinder role binderVar myId =
 makeGetParam ::
     ( Monad i, Monad o
     , Has (Texts.Navigation Text) env
-    , Has (Texts.Name Text) env
+    , Has (Texts.Name Text) env, Has (Texts.Code Text) env
     , Has (MomentuTexts.Texts Text) env
     ) =>
     Sugar.ParamRef Name o -> Widget.Id ->

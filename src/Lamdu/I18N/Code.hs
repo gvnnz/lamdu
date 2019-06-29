@@ -17,6 +17,7 @@ data Code a = Code
     , _toNom :: a
     , _fromNom :: a
     , _repl :: a
+    , _infixMethodSymbol :: a
     , -- Case
       _case_ :: a
     , _of_ :: a
