@@ -320,15 +320,30 @@ toLabeledApply
     <*> traverse (toAnnotatedArg toExpression) _aAnnotatedArgs
     <*> traverse (toNode (Lens._Wrapped toGetVar)) _aPunnedArgs
 
+toQuery :: MonadNaming m => Query (OldName m) -> m (Query (NewName m))
+toQuery q =
+    traverse (opGetName Nothing nameType) q
+    where
+        nameType =
+            case q of
+            QLocal _ -> TaggedVar
+            QGlobal _ -> GlobalDef
+            QNom _ -> TaggedNominal
+            QLam _ -> TaggedVar
+            QRecord _ -> Tag
+            QGetField _ -> Tag
+            QCase _ -> Tag
+            QInject _ -> Tag
+
 toHole ::
     MonadNaming m =>
     Hole (OldName m) (IM m) o ->
     m (Hole (NewName m) (IM m) o)
 toHole hole =
-    opRun
+    (,) <$> opRun <*> opRun
     <&>
-    \run ->
-    SugarLens.holeTransformExprs (run . toNode toBinder) hole
+    \(run0, run1) ->
+    SugarLens.holeTransformExprs (run0 . toQuery) (run1 . toNode toBinder) hole
 
 toFragment ::
     MonadNaming m =>
@@ -337,14 +352,16 @@ toFragment ::
 toFragment Fragment{_fExpr, _fHeal, _fTypeMismatch, _fOptions} =
     do
         newTypeMismatch <- Lens._Just toType _fTypeMismatch
-        run <- opRun
+        run0 <- opRun
+        run1 <- opRun
         newExpr <- toExpression _fExpr
         pure Fragment
             { _fExpr = newExpr
             , _fTypeMismatch = newTypeMismatch
             , _fOptions =
-                _fOptions
-                <&> (>>= traverse (run . toNode toBinder))
+                \q0 ->
+                _fOptions (\q1 -> run0 (toQuery q1) >>= q0)
+                >>= traverse (run1 . toNode toBinder)
             , _fHeal
             }
 

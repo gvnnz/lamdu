@@ -41,6 +41,7 @@ module Lamdu.Sugar.Types.Expression
     -- Record & Cases
     , Composite(..), cItems, cPunnedItems, cAddItem, cTail
     , Case(..), cKind, cBody
+    , Query(..), _QLam, _QRecord, _QGetField, _QCase, _QInject, _QNom, _QLocal, _QGlobal
     ) where
 
 import qualified Control.Lens as Lens
@@ -96,8 +97,19 @@ data HoleOption name i o = HoleOption
     , _holeOptionPick :: o ()
     } deriving Generic
 
+data Query name
+    = QLam [name]
+    | QRecord [name]
+    | QGetField name
+    | QCase [name]
+    | QInject name
+    | QNom name
+    | QLocal name
+    | QGlobal name
+    deriving (Functor, Foldable, Traversable)
+
 data Hole name i o = Hole
-    { _holeOptions :: Text -> i [HoleOption name i o]
+    { _holeOptions :: (Query name -> i Int) -> i [HoleOption name i o]
         -- outer "i" here is used to read index of globals
         -- inner "i" is used to type-check/sugar every val in the option
       -- TODO: Lifter from i to o?
@@ -112,7 +124,7 @@ data Fragment name i o h = Fragment
     { _fExpr :: h :# Body name i o
     , _fHeal :: o EntityId
     , _fTypeMismatch :: Maybe (Annotated EntityId (Type name))
-    , _fOptions :: Text -> i [Annotated (Payload name i o (Maybe (o ()))) (Binder name i o)]
+    , _fOptions :: (Query name -> i Int) -> i [Annotated (Payload name i o (Maybe (o ()))) (Binder name i o)]
         -- ^ The options are transformations of fExpr, i.e: fExpr must
         -- be embedded exactly once in each result.  To pick one of
         -- the options and emplace fExpr in it, use the "o ()" action
@@ -227,6 +239,7 @@ Lens.makePrisms ''Binder
 Lens.makePrisms ''Body
 Lens.makePrisms ''Else
 Lens.makePrisms ''InjectContent
+Lens.makePrisms ''Query
 
 traverse makeHTraversableAndBases
     [ ''Assignment, ''AssignPlain, ''Body, ''Binder, ''Case
