@@ -41,7 +41,7 @@ module Lamdu.Sugar.Types.Expression
     -- Record & Cases
     , Composite(..), cItems, cPunnedItems, cAddItem, cTail
     , Case(..), cKind, cBody
-    , Query(..), _QLam, _QRecord, _QGetField, _QCase, _QInject, _QNom, _QLocal, _QGlobal
+    , Queries(..), qLam, qRecord, qGetField, qCase, qInject, qNom, qLocal, qGlobal
     ) where
 
 import qualified Control.Lens as Lens
@@ -97,19 +97,22 @@ data HoleOption name i o = HoleOption
     , _holeOptionPick :: o ()
     } deriving Generic
 
-data Query name
-    = QLam [name]
-    | QRecord [name]
-    | QGetField name
-    | QCase [name]
-    | QInject name
-    | QNom name
-    | QLocal name
-    | QGlobal name
-    deriving (Functor, Foldable, Traversable)
+-- TODO: nicer sum type, for now minBound is rule-out
+type Priority = Int
+
+data Queries name i = Queries
+    { _qLam      :: Maybe ([name] -> i Priority)
+    , _qRecord   :: Maybe ([name] -> i Priority)
+    , _qCase     :: Maybe ([name] -> i Priority)
+    , _qGetField :: Maybe (name -> i Priority)
+    , _qInject   :: Maybe (name -> i Priority)
+    , _qNom      :: Maybe (name -> i Priority)
+    , _qLocal    :: Maybe (name -> i Priority)
+    , _qGlobal   :: Maybe (name -> i Priority)
+    }
 
 data Hole name i o = Hole
-    { _holeOptions :: (Query name -> i Int) -> i [HoleOption name i o]
+    { _holeOptions :: Queries name i -> i [HoleOption name i o]
         -- outer "i" here is used to read index of globals
         -- inner "i" is used to type-check/sugar every val in the option
       -- TODO: Lifter from i to o?
@@ -124,7 +127,7 @@ data Fragment name i o h = Fragment
     { _fExpr :: h :# Body name i o
     , _fHeal :: o EntityId
     , _fTypeMismatch :: Maybe (Annotated EntityId (Type name))
-    , _fOptions :: (Query name -> i Int) -> i [Annotated (Payload name i o (Maybe (o ()))) (Binder name i o)]
+    , _fOptions :: Queries name i -> i [Annotated (Payload name i o (Maybe (o ()))) (Binder name i o)]
         -- ^ The options are transformations of fExpr, i.e: fExpr must
         -- be embedded exactly once in each result.  To pick one of
         -- the options and emplace fExpr in it, use the "o ()" action
@@ -234,12 +237,12 @@ Lens.makeLenses ''Inject
 Lens.makeLenses ''LabeledApply
 Lens.makeLenses ''Lambda
 Lens.makeLenses ''Let
+Lens.makeLenses ''Queries
 Lens.makePrisms ''Assignment
 Lens.makePrisms ''Binder
 Lens.makePrisms ''Body
 Lens.makePrisms ''Else
 Lens.makePrisms ''InjectContent
-Lens.makePrisms ''Query
 
 traverse makeHTraversableAndBases
     [ ''Assignment, ''AssignPlain, ''Body, ''Binder, ''Case

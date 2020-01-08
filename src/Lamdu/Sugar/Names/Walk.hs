@@ -320,8 +320,17 @@ toLabeledApply
     <*> traverse (toAnnotatedArg toExpression) _aAnnotatedArgs
     <*> traverse (toNode (Lens._Wrapped toGetVar)) _aPunnedArgs
 
-toQuery :: MonadNaming m => Query (OldName m) -> m (Query (NewName m))
-toQuery q =
+toQueries :: MonadNaming m => Queries (NewName m) -> m (Queries (OldName m))
+toQueries q =
+    Queries
+    { _qLam      = q ^. qLam    <&> \q0 names -> traverse (opGetName Nothing TaggedVar) names
+    , _qRecord   = q ^. qRecord <&> 
+    , _qCase     = q ^. qCase   <&> 
+    , _qGetField = q ^. qGetField <&> 
+    , _qInject   = q ^. qInject   <&> 
+    , _qNom      = q ^. qNom      <&> 
+    , _qLocal    = q ^. qLocal    <&> 
+    , _qGlobal   = q ^. qGlobal   <&> 
     traverse (opGetName Nothing nameType) q
     where
         nameType =
