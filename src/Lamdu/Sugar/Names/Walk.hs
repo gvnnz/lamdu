@@ -1,6 +1,6 @@
-{-# LANGUAGE TypeFamilies, NamedFieldPuns, TemplateHaskell, TypeOperators #-}
+{-# LANGUAGE TypeFamilies, NamedFieldPuns, TemplateHaskell, TypeOperators, RankNTypes #-}
 module Lamdu.Sugar.Names.Walk
-    ( MonadNaming(..)
+    ( MonadNaming(..), Run(..)
     , NameType(..), _GlobalDef, _TaggedVar, _TaggedNominal, _Tag
     , isLocal, isGlobal
     , FunctionSignature(..), Disambiguator
@@ -51,12 +51,14 @@ data FunctionSignature = FunctionSignature
 
 type Disambiguator = FunctionSignature
 
+newtype Run m = Run (forall a. m a -> IM m a)
+
 -- TODO: Rename MonadNameWalk
 class (Monad m, Monad (IM m)) => MonadNaming m where
     type OldName m
     type NewName m
     type IM m :: * -> *
-    opRun :: m (m a -> IM m a)
+    opRun :: m (Run m)
 
     opWithName :: Sugar.VarInfo -> NameType -> CPSNameConvertor m
     opGetName :: Maybe Disambiguator -> NameType -> NameConvertor m
@@ -172,7 +174,7 @@ toResVal = resBody (toResBody toResVal)
 toValAnnotation :: MonadNaming m => ValAnnotation (OldName m) (IM m) -> m (ValAnnotation (NewName m) (IM m))
 toValAnnotation (ValAnnotation evalRes typ) =
     do
-        run <- opRun
+        Run run <- opRun
         Lens._Just toType typ
             <&>
             ValAnnotation
@@ -275,7 +277,7 @@ toTagReplace ::
 toTagReplace t =
     opRun
     <&>
-    \run -> t & tsOptions %~ (>>= run . (traverse . toInfo) (toTagOf Tag))
+    \(Run run) -> t & tsOptions %~ (>>= run . (traverse . toInfo) (toTagOf Tag))
 
 toTagRefOf ::
     MonadNaming m =>
@@ -320,39 +322,33 @@ toLabeledApply
     <*> traverse (toAnnotatedArg toExpression) _aAnnotatedArgs
     <*> traverse (toNode (Lens._Wrapped toGetVar)) _aPunnedArgs
 
-toQueries :: MonadNaming m => Queries (NewName m) -> m (Queries (OldName m))
+toQueries :: MonadNaming m => Queries (NewName m) (IM m) -> m (Queries (OldName m) (IM m))
 toQueries q =
+    opRun
+    <&>
+    \(Run run) ->
+    let goNames t q0 names = run (traverse (opGetName Nothing t) names) >>= q0
+        goName t q0 name = run (opGetName Nothing t name) >>= q0
+    in
     Queries
-    { _qLam      = q ^. qLam    <&> \q0 names -> traverse (opGetName Nothing TaggedVar) names
-    , _qRecord   = q ^. qRecord <&> 
-    , _qCase     = q ^. qCase   <&> 
-    , _qGetField = q ^. qGetField <&> 
-    , _qInject   = q ^. qInject   <&> 
-    , _qNom      = q ^. qNom      <&> 
-    , _qLocal    = q ^. qLocal    <&> 
-    , _qGlobal   = q ^. qGlobal   <&> 
-    traverse (opGetName Nothing nameType) q
-    where
-        nameType =
-            case q of
-            QLocal _ -> TaggedVar
-            QGlobal _ -> GlobalDef
-            QNom _ -> TaggedNominal
-            QLam _ -> TaggedVar
-            QRecord _ -> Tag
-            QGetField _ -> Tag
-            QCase _ -> Tag
-            QInject _ -> Tag
+    { _qLam      = q ^. qLam    <&> goNames TaggedVar
+    , _qRecord   = q ^. qRecord <&> goNames Tag
+    , _qCase     = q ^. qCase   <&> goNames Tag
+    , _qGetField = q ^. qGetField <&> goName Tag
+    , _qInject   = q ^. qInject   <&> goName Tag
+    , _qNom      = q ^. qNom      <&> goName TaggedNominal
+    , _qLocal    = q ^. qLocal    <&> goName TaggedVar
+    , _qGlobal   = q ^. qGlobal   <&> goName TaggedVar
+    }
 
 toHole ::
     MonadNaming m =>
     Hole (OldName m) (IM m) o ->
     m (Hole (NewName m) (IM m) o)
 toHole hole =
-    (,) <$> opRun <*> opRun
-    <&>
-    \(run0, run1) ->
-    SugarLens.holeTransformExprs (run0 . toQuery) (run1 . toNode toBinder) hole
+    opRun
+    <&> \(Run run) ->
+    SugarLens.holeTransformExprs (run . toQueries) (run . toNode toBinder) hole
 
 toFragment ::
     MonadNaming m =>
@@ -361,16 +357,16 @@ toFragment ::
 toFragment Fragment{_fExpr, _fHeal, _fTypeMismatch, _fOptions} =
     do
         newTypeMismatch <- Lens._Just toType _fTypeMismatch
-        run0 <- opRun
-        run1 <- opRun
+        Run run <- opRun
         newExpr <- toExpression _fExpr
         pure Fragment
             { _fExpr = newExpr
             , _fTypeMismatch = newTypeMismatch
             , _fOptions =
                 \q0 ->
-                _fOptions (\q1 -> run0 (toQuery q1) >>= q0)
-                >>= traverse (run1 . toNode toBinder)
+                run (toQueries q0)
+                >>= _fOptions
+                >>= traverse (run . toNode toBinder)
             , _fHeal
             }
 
@@ -561,7 +557,7 @@ toWorkArea ::
     m (WorkArea (NewName m) (IM m) o (Payload (NewName m) (IM m) o a))
 toWorkArea WorkArea { _waPanes, _waRepl, _waGlobals } =
     do
-        run <- opRun
+        Run run <- opRun
         panes <- traverse toPane _waPanes
         repl <- toRepl _waRepl
         let globals = _waGlobals >>= run . toGlobals

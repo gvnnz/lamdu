@@ -62,7 +62,7 @@ instance Monad i => MonadNaming (PassAutoTags i) where
     type OldName (PassAutoTags i) = InternalName
     type NewName (PassAutoTags i) = PAName
     type IM (PassAutoTags i) = i
-    opRun = Lens.view id <&> flip (runReader . runPassAutoTags) <&> (pure .)
+    opRun = Lens.view id <&> \x -> Walk.Run (\a -> pure (runReader (runPassAutoTags a) x))
     opWithName varInfo _ = pAOpWithName varInfo
     opGetName _ _ = pAOpGetName
 
@@ -118,7 +118,7 @@ instance Monad i => MonadNaming (Pass0LoadNames i) where
     type OldName (Pass0LoadNames i) = PAName
     type NewName (Pass0LoadNames i) = P0Name
     type IM (Pass0LoadNames i) = i
-    opRun = Reader.ask <&> runPass0LoadNames
+    opRun = Reader.ask <&> \x -> Walk.Run (runPass0LoadNames x)
     opWithName _ _ n = CPS $ \inner -> (,) <$> getP0Name n <*> inner
     opGetName _ _ = getP0Name
 
@@ -184,7 +184,7 @@ instance Monad i => MonadNaming (Pass1PropagateUp i o) where
     type OldName (Pass1PropagateUp i o) = P0Name
     type NewName (Pass1PropagateUp i o) = P1Name
     type IM (Pass1PropagateUp i o) = i
-    opRun = pure (pure . fst . runPass1PropagateUp)
+    opRun = pure (Walk.Run (pure . fst . runPass1PropagateUp))
     opWithName _ = p1Name Nothing
     opGetName mDisambiguator nameType p0Name =
         p1Name mDisambiguator nameType p0Name & runcps
@@ -443,7 +443,7 @@ instance Monad i => MonadNaming (Pass2MakeNames i o) where
     type OldName (Pass2MakeNames i o) = P1Name
     type NewName (Pass2MakeNames i o) = Name
     type IM (Pass2MakeNames i o) = i
-    opRun = Lens.view id <&> flip (runReader . runPass2MakeNames) <&> (pure .)
+    opRun = Lens.view id <&> \x -> Walk.Run (\a -> pure (runReader (runPass2MakeNames a) x))
     opWithName _ _ = p2cpsNameConvertor
     opGetName _ = p2nameConvertor
 
