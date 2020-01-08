@@ -111,7 +111,7 @@ instance Monad m => Order m name o (Sugar.Body name (T m) o) where
     order (Sugar.BodyHole a) = SugarLens.holeTransformExprs orderNode a & Sugar.BodyHole & pure
     order (Sugar.BodyFragment a) =
         a
-        & Sugar.fOptions . Lens.mapped . Lens.mapped %~ SugarLens.holeOptionTransformExprs orderNode
+        & Sugar.fOptions . Lens.mapped %~ (>>= traverse orderNode)
         & Sugar.fExpr orderNode
         <&> Sugar.BodyFragment
     order (Sugar.BodyIfElse x) = order x <&> Sugar.BodyIfElse

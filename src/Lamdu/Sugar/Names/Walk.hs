@@ -343,10 +343,8 @@ toFragment Fragment{_fExpr, _fHeal, _fTypeMismatch, _fOptions} =
             { _fExpr = newExpr
             , _fTypeMismatch = newTypeMismatch
             , _fOptions =
-                 _fOptions
-                 <&> Lens.mapped %~
-                     SugarLens.holeOptionTransformExprs
-                     (run . toNode toBinder)
+                _fOptions
+                <&> (>>= traverse (run . toNode toBinder))
             , _fHeal
             }
 

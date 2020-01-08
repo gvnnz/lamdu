@@ -32,9 +32,8 @@ module Lamdu.Sugar.Types.Expression
     , AssignPlain(..), apAddFirstParam, apBody
     , Assignment(..), _BodyFunction, _BodyPlain
     -- Holes
-    , HoleOption(..), hoEntityId, hoSugaredBaseExpr, hoResults
     , Hole(..), holeOptions, holeMDelete
-    , HoleResult(..), holeResultConverted, holeResultPick
+    , HoleOption(..), holeOptionExpr, holeOptionPick
     -- If/else
     , ElseIfContent(..), eiScopes, eiContent
     , Else(..), _SimpleElse, _ElseIf
@@ -45,7 +44,6 @@ module Lamdu.Sugar.Types.Expression
     ) where
 
 import qualified Control.Lens as Lens
-import           Control.Monad.ListT (ListT)
 import           Data.Kind (Constraint)
 import           Data.Property (Property)
 import           Hyper
@@ -93,35 +91,33 @@ data Lambda name i o f = Lambda
     , _lamFunc :: Function name i o f
     } deriving Generic
 
--- | An expression marked for transformation.
--- Holds an expression to be transformed but acts like a hole.
-data Fragment name i o k = Fragment
-    { _fExpr :: k :# Body name i o
-    , _fHeal :: o EntityId
-    , _fTypeMismatch :: Maybe (Annotated EntityId (Type name))
-    , _fOptions :: i [HoleOption name i o]
-    } deriving Generic
-
-data HoleResult name i o = HoleResult
-    { _holeResultConverted :: Annotated (Payload name i o ()) (Binder name i o)
-    , _holeResultPick :: o ()
-    } deriving Generic
-
 data HoleOption name i o = HoleOption
-    { _hoEntityId :: EntityId
-    , _hoSugaredBaseExpr :: i (Annotated (Payload name i o ()) (Binder name i o))
-    , -- A group in the hole results based on this option
-      _hoResults :: ListT i (HoleResultScore, i (HoleResult name i o))
+    { _holeOptionExpr :: Annotated (Payload name i o ()) (Binder name i o)
+    , _holeOptionPick :: o ()
     } deriving Generic
 
 data Hole name i o = Hole
-    { _holeOptions :: i [HoleOption name i o]
+    { _holeOptions :: Text -> i [HoleOption name i o]
         -- outer "i" here is used to read index of globals
         -- inner "i" is used to type-check/sugar every val in the option
       -- TODO: Lifter from i to o?
     , -- Changes the structure around the hole to remove the hole.
       -- For example (f _) becomes (f) or (2 + _) becomes 2
       _holeMDelete :: Maybe (o EntityId)
+    } deriving Generic
+
+-- | An expression marked for transformation.
+-- Holds an expression to be transformed but acts like a hole.
+data Fragment name i o h = Fragment
+    { _fExpr :: h :# Body name i o
+    , _fHeal :: o EntityId
+    , _fTypeMismatch :: Maybe (Annotated EntityId (Type name))
+    , _fOptions :: Text -> i [Annotated (Payload name i o (Maybe (o ()))) (Binder name i o)]
+        -- ^ The options are transformations of fExpr, i.e: fExpr must
+        -- be embedded exactly once in each result.  To pick one of
+        -- the options and emplace fExpr in it, use the "o ()" action
+        -- provided in the payload of the emplace location (there can
+        -- be more than one)
     } deriving Generic
 
 -- An "elif <cond>: <then>" clause in an IfElse expression and the subtree under it
@@ -169,7 +165,7 @@ data Body name i o k
     | BodyToNom (Nominal name (k :# Binder name i o))
     | BodyFromNom (TId name)
     | BodyFragment (Fragment name i o k)
-    | BodyPlaceHolder -- Used for hole results, shown as "★"
+    | BodyPlaceHolder -- Used for hole options, shown as "★"
     deriving Generic
 
 data Let name i o k = Let
@@ -221,7 +217,6 @@ Lens.makeLenses ''Fragment
 Lens.makeLenses ''Function
 Lens.makeLenses ''Hole
 Lens.makeLenses ''HoleOption
-Lens.makeLenses ''HoleResult
 Lens.makeLenses ''IfElse
 Lens.makeLenses ''Inject
 Lens.makeLenses ''LabeledApply

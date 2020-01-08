@@ -36,9 +36,9 @@ import           Lamdu.Config (Config)
 import qualified Lamdu.Config as Config
 import           Lamdu.Config.Theme (Theme)
 import qualified Lamdu.Config.Theme as Theme
-import           Lamdu.GUI.Expr.HoleEdit.ResultGroups (ResultGroup(..), Result(..))
-import qualified Lamdu.GUI.Expr.HoleEdit.ResultGroups as ResultGroups
-import qualified Lamdu.GUI.Expr.HoleEdit.ResultWidget as ResultWidget
+-- import           Lamdu.GUI.Expr.HoleEdit.ResultGroups (ResultGroup(..), Result(..))
+-- import qualified Lamdu.GUI.Expr.HoleEdit.ResultGroups as ResultGroups
+-- -- import qualified Lamdu.GUI.Expr.HoleEdit.ResultWidget as ResultWidget
 import           Lamdu.GUI.Expr.HoleEdit.WidgetIds (WidgetIds(..))
 import qualified Lamdu.GUI.Expr.HoleEdit.WidgetIds as HoleWidgetIds
 import           Lamdu.GUI.ExpressionGui.Annotation (maybeAddAnnotationPl)
@@ -80,20 +80,20 @@ fdConfig env = FocusDelegator.Config
         ]
     }
 
-makeRenderedResult ::
-    (Monad i, Monad o, Has (MomentuTexts.Texts Text) env) =>
-    Sugar.Payload name i o ExprGui.Payload -> SearchMenu.ResultsContext ->
-    Result i o ->
-    GuiM env i o (Menu.RenderedOption o)
-makeRenderedResult pl ctx result =
-    do
-        -- Warning: rHoleResult should be ran at most once!
-        -- Running it more than once caused a horrible bug (bugfix: 848b6c4407)
-        res <- rHoleResult result & GuiM.im
-        res ^. Sugar.holeResultConverted
-            & postProcessSugar (pl ^. Sugar.plData . ExprGui.plMinOpPrec)
-            & ResultWidget.make ctx (rId result)
-                (res ^. Sugar.holeResultPick)
+-- makeRenderedResult ::
+--     (Monad i, Monad o, Has (MomentuTexts.Texts Text) env) =>
+--     Sugar.Payload name i o ExprGui.Payload -> SearchMenu.ResultsContext ->
+--     Result i o ->
+--     GuiM env i o (Menu.RenderedOption o)
+-- makeRenderedResult pl ctx result =
+--     do
+--         -- Warning: rHoleResult should be ran at most once!
+--         -- Running it more than once caused a horrible bug (bugfix: 848b6c4407)
+--         res <- rHoleResult result & GuiM.im
+--         res ^. Sugar.holeResultConverted
+--             & postProcessSugar (pl ^. Sugar.plData . ExprGui.plMinOpPrec)
+--             & ResultWidget.make ctx (rId result)
+--                 (res ^. Sugar.holeResultPick)
 
 postProcessSugar ::
     AddParens.MinOpPrec ->
@@ -111,29 +111,29 @@ postProcessSugar minOpPrec binder =
             }
             <$ sugarPl
 
-makeResultOption ::
-    (Monad i, Monad o, Has (MomentuTexts.Texts Text) env) =>
-    Sugar.Payload name i o ExprGui.Payload -> SearchMenu.ResultsContext ->
-    ResultGroup i o -> Menu.Option (GuiM env i o) o
-makeResultOption pl ctx results =
-    Menu.Option
-    { Menu._oId = results ^. ResultGroups.rgPrefixId
-    , Menu._oRender = makeRenderedResult pl ctx (results ^. ResultGroups.rgMain)
-    , Menu._oSubmenuWidgets =
-        case results ^. ResultGroups.rgExtra of
-        [] -> Menu.SubmenuEmpty
-        extras ->
-            traverse (makeRenderedResult pl ctx) extras
-            <&> map makeSubMenu
-            & Menu.SubmenuItems
-    }
-    where
-        makeSubMenu extraResultWidget =
-            Menu.Option
-            { Menu._oId = results ^. ResultGroups.rgPrefixId -- UGLY HACK
-            , Menu._oRender = pure extraResultWidget
-            , Menu._oSubmenuWidgets = Menu.SubmenuEmpty
-            }
+-- makeResultOption ::
+--     (Monad i, Monad o, Has (MomentuTexts.Texts Text) env) =>
+--     Sugar.Payload name i o ExprGui.Payload -> SearchMenu.ResultsContext ->
+--     ResultGroup i o -> Menu.Option (GuiM env i o) o
+-- makeResultOption pl ctx results =
+--     Menu.Option
+--     { Menu._oId = results ^. ResultGroups.rgPrefixId
+--     , Menu._oRender = makeRenderedResult pl ctx (results ^. ResultGroups.rgMain)
+--     , Menu._oSubmenuWidgets =
+--         case results ^. ResultGroups.rgExtra of
+--         [] -> Menu.SubmenuEmpty
+--         extras ->
+--             traverse (makeRenderedResult pl ctx) extras
+--             <&> map makeSubMenu
+--             & Menu.SubmenuItems
+--     }
+--     where
+--         makeSubMenu extraResultWidget =
+--             Menu.Option
+--             { Menu._oId = results ^. ResultGroups.rgPrefixId -- UGLY HACK
+--             , Menu._oRender = pure extraResultWidget
+--             , Menu._oSubmenuWidgets = Menu.SubmenuEmpty
+--             }
 
 makeInferredTypeAnnotation ::
     ( MonadReader env m, Has Theme env, Element.HasAnimIdPrefix env
@@ -244,8 +244,8 @@ make annMode mkOptions pl allowedTerms widgetIds =
                 (Text.length txt /= 1 || Text.any (`notElem` Chars.operator) txt)
                 && allowedTerms txt
             }
-        filteredOptions opts ctx =
-            ResultGroups.makeAll opts ctx
-            <&> Lens.mapped %~ makeResultOption pl ctx
-            <&> Lens.mapped . Menu.optionWidgets . Align.tValue . Widget.eventMapMaker . Lens.mapped %~
-                filterSearchTermEvents allowedTerms (ctx ^. SearchMenu.rSearchTerm)
+        filteredOptions opts ctx = undefined
+            -- ResultGroups.makeAll opts ctx
+            -- <&> Lens.mapped %~ makeResultOption pl ctx
+            -- <&> Lens.mapped . Menu.optionWidgets . Align.tValue . Widget.eventMapMaker . Lens.mapped %~
+            --     filterSearchTermEvents allowedTerms (ctx ^. SearchMenu.rSearchTerm)

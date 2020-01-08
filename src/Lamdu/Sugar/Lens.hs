@@ -8,7 +8,7 @@ module Lamdu.Sugar.Lens
     , assignmentBodyAddFirstParam
     , binderFuncParamActions
     , binderResultExpr
-    , holeTransformExprs, holeOptionTransformExprs
+    , holeTransformExprs
     , annotationTypes
     , getVarName
     ) where
@@ -117,24 +117,13 @@ binderResultExpr f (Ann (Const pl) x) =
         <&> BinderLet
         <&> Ann (Const pl)
 
-holeOptionTransformExprs ::
-    Monad i =>
-    (Annotated (Payload n0 i o ()) (Binder n0 i o) ->
-        i (Annotated (Payload n1 i o ()) (Binder n1 i o))) ->
-    HoleOption n0 i o -> HoleOption n1 i o
-holeOptionTransformExprs onExpr option =
-    option
-    { _hoSugaredBaseExpr = option ^. hoSugaredBaseExpr >>= onExpr
-    , _hoResults = option ^. hoResults <&> Lens._2 %~ (>>= holeResultConverted onExpr)
-    }
-
 holeTransformExprs ::
     Monad i =>
     (Annotated (Payload n0 i o ()) (Binder n0 i o) ->
         i (Annotated (Payload n1 i o ()) (Binder n1 i o))) ->
     Hole n0 i o -> Hole n1 i o
 holeTransformExprs onExpr =
-    holeOptions . Lens.mapped . traverse %~ holeOptionTransformExprs onExpr
+    holeOptions . Lens.mapped %~ (>>= (traverse . holeOptionExpr) onExpr)
 
 assignmentBodyAddFirstParam :: Lens' (Assignment name i o a) (AddFirstParam name i o)
 assignmentBodyAddFirstParam f (BodyFunction x) = fAddFirstParam f x <&> BodyFunction

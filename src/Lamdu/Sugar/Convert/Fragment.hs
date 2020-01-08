@@ -11,21 +11,21 @@ module Lamdu.Sugar.Convert.Fragment
 import qualified Control.Lens as Lens
 import           Control.Monad.Except (MonadError(..))
 import           Control.Monad.ListT (ListT)
-import qualified Control.Monad.Reader as Reader
+-- import qualified Control.Monad.Reader as Reader
 import           Control.Monad.State (State, runState, StateT(..), mapStateT)
 import qualified Control.Monad.State as State
 import           Control.Monad.Trans.Maybe (MaybeT(..))
-import qualified Data.List.Class as ListClass
-import qualified Data.Property as Property
+-- import qualified Data.List.Class as ListClass
+-- import qualified Data.Property as Property
 import           Hyper
-import           Hyper.Class.Infer.InferOf (InferOfConstraint, inferOfConstraint)
+-- import           Hyper.Class.Infer.InferOf (InferOfConstraint, inferOfConstraint)
 import           Hyper.Infer (InferResult(..), inferResult, inferUVarsApplyBindings)
-import           Hyper.Type.AST.FuncType (FuncType(..))
+-- import           Hyper.Type.AST.FuncType (FuncType(..))
 import           Hyper.Unify (Unify(..), BindingDict(..), unify)
 import           Hyper.Unify.Apply (applyBindings)
 import           Hyper.Unify.Binding (UVar)
-import           Hyper.Unify.Term (UTerm(..), UTermBody(..))
-import qualified Lamdu.Annotations as Annotations
+-- import           Hyper.Unify.Term (UTerm(..), UTermBody(..))
+-- import qualified Lamdu.Annotations as Annotations
 import           Lamdu.Calc.Infer (InferState, runPureInfer, PureInfer)
 import qualified Lamdu.Calc.Lens as ExprLens
 import qualified Lamdu.Calc.Term as V
@@ -35,9 +35,9 @@ import           Lamdu.Expr.IRef (iref)
 import qualified Lamdu.Sugar.Config as Config
 import qualified Lamdu.Sugar.Convert.Expression.Actions as Actions
 import           Lamdu.Sugar.Convert.Fragment.Heal (healMismatch)
-import qualified Lamdu.Sugar.Convert.Hole as Hole
-import           Lamdu.Sugar.Convert.Hole.ResultScore (resultScore)
-import qualified Lamdu.Sugar.Convert.Hole.Suggest as Suggest
+-- import qualified Lamdu.Sugar.Convert.Hole as Hole
+-- import           Lamdu.Sugar.Convert.Hole.ResultScore (resultScore)
+-- import qualified Lamdu.Sugar.Convert.Hole.Suggest as Suggest
 import qualified Lamdu.Sugar.Convert.Input as Input
 import           Lamdu.Sugar.Convert.Monad (ConvertM)
 import qualified Lamdu.Sugar.Convert.Monad as ConvertM
@@ -46,80 +46,80 @@ import qualified Lamdu.Sugar.Internal.EntityId as EntityId
 import           Lamdu.Sugar.Types
 import           Revision.Deltum.Hyper (Write(..))
 import           Revision.Deltum.Transaction (Transaction)
-import qualified System.Random.Extended as Random
+-- import qualified System.Random.Extended as Random
 
 import           Lamdu.Prelude
 
 type T = Transaction
 
-fragmentResultProcessor ::
-    Monad m =>
-    EntityId -> Ann (Input.Payload m a) # V.Term -> Hole.ResultProcessor m
-fragmentResultProcessor topEntityId fragment =
-    Hole.ResultProcessor
-    { Hole.rpEmptyPl = NotFragment
-    , Hole.rpPostProcess = holeResultsEmplaceFragment fragment
-    , Hole.rpPreConversion = replaceFragment topEntityId 0
-    }
+-- fragmentResultProcessor ::
+--     Monad m =>
+--     EntityId -> Ann (Input.Payload m a) # V.Term -> Hole.ResultProcessor m
+-- fragmentResultProcessor topEntityId fragment =
+--     Hole.ResultProcessor
+--     { Hole.rpEmptyPl = NotFragment
+--     , Hole.rpPostProcess = holeResultsEmplaceFragment fragment
+--     , Hole.rpPreConversion = replaceFragment topEntityId 0
+--     }
 
-mkOptions ::
-    Monad m =>
-    ConvertM.PositionInfo ->
-    ConvertM.Context m ->
-    Ann (Input.Payload m a) # V.Term ->
-    Expression name i o pl ->
-    Input.Payload m a # V.Term ->
-    ConvertM m (T m [HoleOption InternalName (T m) (T m)])
-mkOptions posInfo sugarContext argI argS exprPl =
-    Hole.mkOptions posInfo (fragmentResultProcessor topEntityId argI) exprPl
-    <&> (pure fragmentOptions <>)
-    <&> Lens.mapped %~ Hole.addWithoutDups mkSuggested
-    <&> Lens.mapped . Lens.mapped %~ snd
-    where
-        mkSuggested = mkAppliedHoleSuggesteds sugarContext argI exprPl
-        fragmentOptions =
-            [ App hole hole & V.BApp & Ann (Const ()) | Lens.nullOf (hVal . _BodyLam) argS ]
-            <&>
-            \x ->
-            ( x
-            , Hole.mkOption sugarContext
-                (fragmentResultProcessor topEntityId argI) exprPl x
-            )
-        topEntityId = exprPl ^. Input.stored . iref & EntityId.ofValI
-        hole = V.BLeaf V.LHole & Ann (Const ())
+-- mkOptions ::
+--     Monad m =>
+--     ConvertM.PositionInfo ->
+--     ConvertM.Context m ->
+--     Ann (Input.Payload m a) # V.Term ->
+--     Expression name i o pl ->
+--     Input.Payload m a # V.Term ->
+--     ConvertM m (T m [HoleOption InternalName (T m) (T m)])
+-- mkOptions posInfo sugarContext argI argS exprPl =
+    -- Hole.mkOptions posInfo (fragmentResultProcessor topEntityId argI) exprPl
+    -- <&> (pure fragmentOptions <>)
+    -- <&> Lens.mapped %~ Hole.addWithoutDups mkSuggested
+    -- <&> Lens.mapped . Lens.mapped %~ snd
+    -- where
+    --     mkSuggested = mkAppliedHoleSuggesteds sugarContext argI exprPl
+    --     fragmentOptions =
+    --         [ App hole hole & V.BApp & Ann (Const ()) | Lens.nullOf (hVal . _BodyLam) argS ]
+    --         <&>
+    --         \x ->
+    --         ( x
+    --         , Hole.mkOption sugarContext
+    --             (fragmentResultProcessor topEntityId argI) exprPl x
+    --         )
+    --     topEntityId = exprPl ^. Input.stored . iref & EntityId.ofValI
+    --     hole = V.BLeaf V.LHole & Ann (Const ())
 
-mkAppliedHoleSuggesteds ::
-    Monad m =>
-    ConvertM.Context m ->
-    Ann (Input.Payload m a) # V.Term ->
-    Input.Payload m a # V.Term ->
-    [(V.Val (), HoleOption InternalName (T m) (T m))]
-mkAppliedHoleSuggesteds sugarContext argI exprPl =
-    runStateT
-    ( Suggest.termTransforms (exprPl ^. Input.inferScope) (WriteNew :*:) (^. _2)
-        ( argI & hflipped %~
-            hmap
-            ( Proxy @(Recursively (InferOfConstraint HFunctor)) #*#
-                \w ->
-                withDict (recursively (p0 w)) $
-                withDict (inferOfConstraint (Proxy @HFunctor) w)
-                onPl
-            )
-        )
-    ) (sugarContext ^. ConvertM.scInferContext)
-    <&> onSuggestion
-    where
-        p0 :: proxy h -> Proxy (InferOfConstraint HFunctor h)
-        p0 _ = Proxy
-        onPl pl =
-            ExistingRef (pl ^. Input.stored . iref) :*:
-            (pl ^. Input.inferRes & hflipped %~ hmap (const (^. Lens._2)))
-        onSuggestion (sugg, newInferCtx) =
-            ( sugg & hflipped %~ hmap (\_ _ -> Const ())
-            , mkOptionFromFragment
-                (sugarContext & ConvertM.scInferContext .~ newInferCtx)
-                exprPl sugg
-            )
+-- mkAppliedHoleSuggesteds ::
+--     Monad m =>
+--     ConvertM.Context m ->
+--     Ann (Input.Payload m a) # V.Term ->
+--     Input.Payload m a # V.Term ->
+--     [(V.Val (), HoleOption InternalName (T m) (T m))]
+-- mkAppliedHoleSuggesteds sugarContext argI exprPl =
+--     runStateT
+--     ( Suggest.termTransforms (exprPl ^. Input.inferScope) (WriteNew :*:) (^. _2)
+--         ( argI & hflipped %~
+--             hmap
+--             ( Proxy @(Recursively (InferOfConstraint HFunctor)) #*#
+--                 \w ->
+--                 withDict (recursively (p0 w)) $
+--                 withDict (inferOfConstraint (Proxy @HFunctor) w)
+--                 onPl
+--             )
+--         )
+--     ) (sugarContext ^. ConvertM.scInferContext)
+--     <&> onSuggestion
+--     where
+--         p0 :: proxy h -> Proxy (InferOfConstraint HFunctor h)
+--         p0 _ = Proxy
+--         onPl pl =
+--             ExistingRef (pl ^. Input.stored . iref) :*:
+--             (pl ^. Input.inferRes & hflipped %~ hmap (const (^. Lens._2)))
+--         onSuggestion (sugg, newInferCtx) =
+--             ( sugg & hflipped %~ hmap (\_ _ -> Const ())
+--             , mkOptionFromFragment
+--                 (sugarContext & ConvertM.scInferContext .~ newInferCtx)
+--                 exprPl sugg
+--             )
 
 checkTypeMatch :: Monad m => UVar # T.Type -> UVar # T.Type -> ConvertM m Bool
 checkTypeMatch x y =
@@ -148,11 +148,10 @@ convertAppliedHole posInfo app@(V.App funcI argI) exprPl argS =
                 (exprPl ^. Input.inferredTypeUVar)
             postProcess <- ConvertM.postProcessAssert
             sugarContext <- Lens.view id
-            options <-
-                mkOptions posInfo sugarContext argI argS exprPl
-                & Reader.local (ConvertM.scAnnotationsMode .~ Annotations.None)
+            options <- undefined
+                -- mkOptions posInfo sugarContext argI argS exprPl
+                -- & Reader.local (ConvertM.scAnnotationsMode .~ Annotations.None)
             healMis <- healMismatch
-            -- TODO: Check isTypeMatch once in convertAppliedHole
             typeMismatch <-
                 if isTypeMatch
                 then pure Nothing
@@ -196,63 +195,63 @@ exceptToListT :: Monad m => Either t a -> ListT m a
 exceptToListT (Left _) = mempty
 exceptToListT (Right x) = pure x
 
-holeResultsEmplaceFragment ::
-    Monad m =>
-    Ann (Input.Payload n a) # V.Term ->
-    Ann (Write n :*: InferResult UVar) # V.Term ->
-    Hole.ResultGen m (Ann ((Const IsFragment :*: Write n) :*: InferResult UVar) # V.Term)
-holeResultsEmplaceFragment rawFragmentExpr x =
-    markNotFragment x
-    & emplaceInHoles emplace
-    & ListClass.fromList
-    & lift
-    & join
-    where
-        emplace pl =
-            -- Try to emplace the fragmentExpr in directly, but if
-            -- that results in a unification type error, fall back to
-            -- emplacing another fragment wrapping the fragmentExpr:
-            ListClass.fromList
-            [ do
-                _ <- unify fragmentType (pl ^. _2 . inferResult)
-                -- Perform occurs checks
-                -- TODO: Share with occurs check that happens for sugaring?
-                t <- State.get
-                _ <- inferUVarsApplyBindings x
-                -- Roll back state after occurs checks
-                fragmentExpr <$ State.put t
-                & liftPureInfer ()
-                & mapStateT exceptToListT
-            , FuncType (pl ^. _2 . inferResult) fragmentType
-                & T.TFun
-                & UTermBody mempty & UTerm & newVar binding
-                & liftPureInfer () & mapStateT exceptToListT
-                <&>
-                \t ->
-                V.App
-                (Ann ((Const NotFragment :*: WriteNew) :*: inferResult # t) (V.BLeaf V.LHole))
-                fragmentExpr
-                & V.BApp & Ann ((Const NotFragment :*: WriteNew) :*: pl ^. _2)
-            ]
-            & lift
-            & join
-            & mapStateT (ListClass.take 1)
-        fragmentExpr =
-            rawFragmentExpr
-            & hflipped %~
-                hmap
-                ( Proxy @(Recursively (InferOfConstraint HFunctor)) #*#
-                    \w ->
-                    withDict (recursively (p0 w)) $
-                    withDict (inferOfConstraint (Proxy @HFunctor) w)
-                    onFragmentPayload
-                )
-        p0 :: proxy h -> Proxy (InferOfConstraint HFunctor h)
-        p0 _ = Proxy
-        onFragmentPayload pl =
-            (Const IsFragment :*: ExistingRef (pl ^. Input.stored . iref))
-            :*: (pl ^. Input.inferRes & hflipped %~ hmap (const (^. _2)))
-        fragmentType = rawFragmentExpr ^. hAnn . Input.inferredTypeUVar
+-- holeResultsEmplaceFragment ::
+--     Monad m =>
+--     Ann (Input.Payload n a) # V.Term ->
+--     Ann (Write n :*: InferResult UVar) # V.Term ->
+--     Hole.ResultGen m (Ann ((Const IsFragment :*: Write n) :*: InferResult UVar) # V.Term)
+-- holeResultsEmplaceFragment rawFragmentExpr x =
+--     markNotFragment x
+--     & emplaceInHoles emplace
+--     & ListClass.fromList
+--     & lift
+--     & join
+--     where
+--         emplace pl =
+--             -- Try to emplace the fragmentExpr in directly, but if
+--             -- that results in a unification type error, fall back to
+--             -- emplacing another fragment wrapping the fragmentExpr:
+--             ListClass.fromList
+--             [ do
+--                 _ <- unify fragmentType (pl ^. _2 . inferResult)
+--                 -- Perform occurs checks
+--                 -- TODO: Share with occurs check that happens for sugaring?
+--                 t <- State.get
+--                 _ <- inferUVarsApplyBindings x
+--                 -- Roll back state after occurs checks
+--                 fragmentExpr <$ State.put t
+--                 & liftPureInfer ()
+--                 & mapStateT exceptToListT
+--             , FuncType (pl ^. _2 . inferResult) fragmentType
+--                 & T.TFun
+--                 & UTermBody mempty & UTerm & newVar binding
+--                 & liftPureInfer () & mapStateT exceptToListT
+--                 <&>
+--                 \t ->
+--                 V.App
+--                 (Ann ((Const NotFragment :*: WriteNew) :*: inferResult # t) (V.BLeaf V.LHole))
+--                 fragmentExpr
+--                 & V.BApp & Ann ((Const NotFragment :*: WriteNew) :*: pl ^. _2)
+--             ]
+--             & lift
+--             & join
+--             & mapStateT (ListClass.take 1)
+--         fragmentExpr =
+--             rawFragmentExpr
+--             & hflipped %~
+--                 hmap
+--                 ( Proxy @(Recursively (InferOfConstraint HFunctor)) #*#
+--                     \w ->
+--                     withDict (recursively (p0 w)) $
+--                     withDict (inferOfConstraint (Proxy @HFunctor) w)
+--                     onFragmentPayload
+--                 )
+--         p0 :: proxy h -> Proxy (InferOfConstraint HFunctor h)
+--         p0 _ = Proxy
+--         onFragmentPayload pl =
+--             (Const IsFragment :*: ExistingRef (pl ^. Input.stored . iref))
+--             :*: (pl ^. Input.inferRes & hflipped %~ hmap (const (^. _2)))
+--         fragmentType = rawFragmentExpr ^. hAnn . Input.inferredTypeUVar
 
 data IsFragment = IsFragment | NotFragment
 
@@ -328,75 +327,75 @@ emplaceInHoles replaceHole =
                             <&> Lens.mapped %~ Ann x
         replace x = replaceHole x <$ State.put True
 
-mkResultValFragment ::
-    UVar # T.Type ->
-    Ann (Write m :*: InferResult UVar) # V.Term ->
-    State InferState (Ann ((Const IsFragment :*: Write m) :*: InferResult UVar) # V.Term)
-mkResultValFragment inferred x =
-    x & hflipped %~ hmap (const onPl)
-    & Hole.detachValIfNeeded (Const IsFragment :*: WriteNew) inferred
-    where
-        onPl (WriteNew :*: i) = (Const NotFragment :*: WriteNew) :*: i
-        onPl i = i & _1 %~ (Const IsFragment :*:)
+-- mkResultValFragment ::
+--     UVar # T.Type ->
+--     Ann (Write m :*: InferResult UVar) # V.Term ->
+--     State InferState (Ann ((Const IsFragment :*: Write m) :*: InferResult UVar) # V.Term)
+-- mkResultValFragment inferred x =
+--     x & hflipped %~ hmap (const onPl)
+--     & Hole.detachValIfNeeded (Const IsFragment :*: WriteNew) inferred
+--     where
+--         onPl (WriteNew :*: i) = (Const NotFragment :*: WriteNew) :*: i
+--         onPl i = i & _1 %~ (Const IsFragment :*:)
 
-mkOptionFromFragment ::
-    Monad m =>
-    ConvertM.Context m ->
-    Input.Payload m a # V.Term ->
-    Ann (Write m :*: InferResult UVar) # V.Term ->
-    HoleOption InternalName (T m) (T m)
-mkOptionFromFragment sugarContext exprPl x =
-    HoleOption
-    { _hoEntityId =
-        x & hflipped %~ hmap (\_ _ -> Const ())
-        & show & Random.randFunc
-        & EntityId.EntityId
-    , _hoSugaredBaseExpr = Hole.sugar sugarContext exprPl baseExpr
-    , _hoResults =
-        do
-            newDeps <- Hole.loadNewDeps (depsProp ^. Property.pVal) (exprPl ^. Input.inferScope) x
-            let newSugarContext =
-                    sugarContext
-                    & ConvertM.scInferContext .~ inferCtx
-                    & ConvertM.scFrozenDeps . Property.pVal .~ newDeps
-            let updateDeps = (depsProp ^. Property.pSet) newDeps
-            pure
-                ( resultScore resolved
-                , Hole.mkResult (replaceFragment topEntityId 0) newSugarContext
-                    updateDeps exprPl result
-                )
-            <&> pure & ListClass.joinL
-    }
-    where
-        depsProp = sugarContext ^. ConvertM.scFrozenDeps
-        (result, inferCtx) =
-            runState
-            (mkResultValFragment (exprPl ^. Input.inferredTypeUVar) x)
-            (sugarContext ^. ConvertM.scInferContext)
-        resolved =
-            result & hflipped %~ hmap (const ((Const () :*:) . (^. _2)))
-            & inferUVarsApplyBindings
-            <&> hflipped %~ hmap
-                ( Proxy @(Recursively (InferOfConstraint HFunctor)) #*#
-                    \w ->
-                    withDict (recursively (p0 w)) $
-                    withDict (inferOfConstraint (Proxy @HFunctor) w) $
-                    (hflipped %~ hmap (const (^. _1))) . (^. _2)
-                )
-            & runPureInfer () inferCtx
-            & Hole.assertSuccessfulInfer
-            & fst
-        p0 :: proxy h -> Proxy (InferOfConstraint HFunctor h)
-        p0 _ = Proxy
-        topEntityId = exprPl ^. Input.stored . iref & EntityId.ofValI
-        baseExpr = pruneExpr x
-        pruneExpr :: Ann (Write m :*: a) # V.Term -> Ann (Const ()) # V.Term
-        pruneExpr (Ann (ExistingRef{} :*: _) _) = V.BLeaf V.LHole & Ann (Const ())
-        pruneExpr (Ann _ b) =
-            hmap
-            ( \case
-                HWitness V.W_Term_Term -> pruneExpr
-                HWitness V.W_Term_HCompose_Prune_Type ->
-                    hflipped %~ hmap (\_ _ -> Const ())
-            ) b
-            & Ann (Const ())
+-- mkOptionFromFragment ::
+--     Monad m =>
+--     ConvertM.Context m ->
+--     Input.Payload m a # V.Term ->
+--     Ann (Write m :*: InferResult UVar) # V.Term ->
+--     HoleOption InternalName (T m) (T m)
+-- mkOptionFromFragment sugarContext exprPl x =
+--     HoleOption
+--     { _hoEntityId =
+--         x & hflipped %~ hmap (\_ _ -> Const ())
+--         & show & Random.randFunc
+--         & EntityId.EntityId
+--     , _hoSugaredBaseExpr = Hole.sugar sugarContext exprPl baseExpr
+--     , _hoResults =
+--         do
+--             newDeps <- Hole.loadNewDeps (depsProp ^. Property.pVal) (exprPl ^. Input.inferScope) x
+--             let newSugarContext =
+--                     sugarContext
+--                     & ConvertM.scInferContext .~ inferCtx
+--                     & ConvertM.scFrozenDeps . Property.pVal .~ newDeps
+--             let updateDeps = (depsProp ^. Property.pSet) newDeps
+--             pure
+--                 ( resultScore resolved
+--                 , Hole.mkResult (replaceFragment topEntityId 0) newSugarContext
+--                     updateDeps exprPl result
+--                 )
+--             <&> pure & ListClass.joinL
+--     }
+--     where
+--         depsProp = sugarContext ^. ConvertM.scFrozenDeps
+--         (result, inferCtx) =
+--             runState
+--             (mkResultValFragment (exprPl ^. Input.inferredTypeUVar) x)
+--             (sugarContext ^. ConvertM.scInferContext)
+--         resolved =
+--             result & hflipped %~ hmap (const ((Const () :*:) . (^. _2)))
+--             & inferUVarsApplyBindings
+--             <&> hflipped %~ hmap
+--                 ( Proxy @(Recursively (InferOfConstraint HFunctor)) #*#
+--                     \w ->
+--                     withDict (recursively (p0 w)) $
+--                     withDict (inferOfConstraint (Proxy @HFunctor) w) $
+--                     (hflipped %~ hmap (const (^. _1))) . (^. _2)
+--                 )
+--             & runPureInfer () inferCtx
+--             & Hole.assertSuccessfulInfer
+--             & fst
+--         p0 :: proxy h -> Proxy (InferOfConstraint HFunctor h)
+--         p0 _ = Proxy
+--         topEntityId = exprPl ^. Input.stored . iref & EntityId.ofValI
+--         baseExpr = pruneExpr x
+--         pruneExpr :: Ann (Write m :*: a) # V.Term -> Ann (Const ()) # V.Term
+--         pruneExpr (Ann (ExistingRef{} :*: _) _) = V.BLeaf V.LHole & Ann (Const ())
+--         pruneExpr (Ann _ b) =
+--             hmap
+--             ( \case
+--                 HWitness V.W_Term_Term -> pruneExpr
+--                 HWitness V.W_Term_HCompose_Prune_Type ->
+--                     hflipped %~ hmap (\_ _ -> Const ())
+--             ) b
+--             & Ann (Const ())
