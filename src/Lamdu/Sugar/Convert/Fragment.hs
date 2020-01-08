@@ -9,24 +9,24 @@ module Lamdu.Sugar.Convert.Fragment
     ) where
 
 import qualified Control.Lens as Lens
-import           Control.Monad.Except (MonadError(..))
-import           Control.Monad.ListT (ListT)
+-- import           Control.Monad.Except (MonadError(..))
+-- import           Control.Monad.ListT (ListT)
 -- import qualified Control.Monad.Reader as Reader
-import           Control.Monad.State (State, runState, StateT(..), mapStateT)
-import qualified Control.Monad.State as State
+-- import           Control.Monad.State (State, StateT(..), runState, mapStateT)
+-- import qualified Control.Monad.State as State
 import           Control.Monad.Trans.Maybe (MaybeT(..))
 -- import qualified Data.List.Class as ListClass
 -- import qualified Data.Property as Property
 import           Hyper
 -- import           Hyper.Class.Infer.InferOf (InferOfConstraint, inferOfConstraint)
-import           Hyper.Infer (InferResult(..), inferResult, inferUVarsApplyBindings)
+-- import           Hyper.Infer (InferResult(..), inferResult, inferUVarsApplyBindings)
 -- import           Hyper.Type.AST.FuncType (FuncType(..))
-import           Hyper.Unify (Unify(..), BindingDict(..), unify)
+import           Hyper.Unify (unify) -- Unify(..), BindingDict(..))
 import           Hyper.Unify.Apply (applyBindings)
 import           Hyper.Unify.Binding (UVar)
 -- import           Hyper.Unify.Term (UTerm(..), UTermBody(..))
 -- import qualified Lamdu.Annotations as Annotations
-import           Lamdu.Calc.Infer (InferState, runPureInfer, PureInfer)
+import           Lamdu.Calc.Infer (runPureInfer) -- InferState, PureInfer)
 import qualified Lamdu.Calc.Lens as ExprLens
 import qualified Lamdu.Calc.Term as V
 import qualified Lamdu.Calc.Type as T
@@ -44,13 +44,13 @@ import qualified Lamdu.Sugar.Convert.Monad as ConvertM
 import           Lamdu.Sugar.Internal
 import qualified Lamdu.Sugar.Internal.EntityId as EntityId
 import           Lamdu.Sugar.Types
-import           Revision.Deltum.Hyper (Write(..))
-import           Revision.Deltum.Transaction (Transaction)
+-- import           Revision.Deltum.Hyper (Write(..))
+-- import           Revision.Deltum.Transaction (Transaction)
 -- import qualified System.Random.Extended as Random
 
 import           Lamdu.Prelude
 
-type T = Transaction
+-- type T = Transaction
 
 -- fragmentResultProcessor ::
 --     Monad m =>
@@ -138,7 +138,7 @@ convertAppliedHole ::
     Input.Payload m a # V.Term ->
     ExpressionU m a ->
     MaybeT (ConvertM m) (ExpressionU m a)
-convertAppliedHole posInfo app@(V.App funcI argI) exprPl argS =
+convertAppliedHole _posInfo app@(V.App funcI argI) exprPl argS =
     do
         Lens.view (ConvertM.scConfig . Config.sugarsEnabled . Config.fragment) >>= guard
         guard (Lens.has ExprLens.valHole funcI)
@@ -147,7 +147,7 @@ convertAppliedHole posInfo app@(V.App funcI argI) exprPl argS =
                 checkTypeMatch (argI ^. hAnn . Input.inferredTypeUVar)
                 (exprPl ^. Input.inferredTypeUVar)
             postProcess <- ConvertM.postProcessAssert
-            sugarContext <- Lens.view id
+            -- sugarContext <- Lens.view id
             options <- undefined
                 -- mkOptions posInfo sugarContext argI argS exprPl
                 -- & Reader.local (ConvertM.scAnnotationsMode .~ Annotations.None)
@@ -183,17 +183,17 @@ convertAppliedHole posInfo app@(V.App funcI argI) exprPl argS =
         stored = exprPl ^. Input.stored
         storedEntityId = stored ^. iref & EntityId.ofValI
 
-liftPureInfer :: env -> PureInfer env a -> StateT InferState (Either (Pure # T.TypeError)) a
-liftPureInfer scope act =
-    do
-        st <- Lens.use id
-        case runPureInfer scope st act of
-            Left x -> throwError x
-            Right (r, newSt) -> r <$ (id .= newSt)
+-- liftPureInfer :: env -> PureInfer env a -> StateT InferState (Either (Pure # T.TypeError)) a
+-- liftPureInfer scope act =
+--     do
+--         st <- Lens.use id
+--         case runPureInfer scope st act of
+--             Left x -> throwError x
+--             Right (r, newSt) -> r <$ (id .= newSt)
 
-exceptToListT :: Monad m => Either t a -> ListT m a
-exceptToListT (Left _) = mempty
-exceptToListT (Right x) = pure x
+-- exceptToListT :: Monad m => Either t a -> ListT m a
+-- exceptToListT (Left _) = mempty
+-- exceptToListT (Right x) = pure x
 
 -- holeResultsEmplaceFragment ::
 --     Monad m =>
@@ -253,79 +253,79 @@ exceptToListT (Right x) = pure x
 --             :*: (pl ^. Input.inferRes & hflipped %~ hmap (const (^. _2)))
 --         fragmentType = rawFragmentExpr ^. hAnn . Input.inferredTypeUVar
 
-data IsFragment = IsFragment | NotFragment
+-- data IsFragment = IsFragment | NotFragment
 
-markNotFragment ::
-    Ann (Write n :*: InferResult UVar) # V.Term ->
-    Ann ((Const IsFragment :*: Write n) :*: InferResult UVar) # V.Term
-markNotFragment = hflipped %~ hmap (const (_1 %~ (Const NotFragment :*:)))
+-- markNotFragment ::
+--     Ann (Write n :*: InferResult UVar) # V.Term ->
+--     Ann ((Const IsFragment :*: Write n) :*: InferResult UVar) # V.Term
+-- markNotFragment = hflipped %~ hmap (const (_1 %~ (Const NotFragment :*:)))
 
 -- TODO: Unify type according to IsFragment, avoid magic var
 fragmentVar :: V.Var
 fragmentVar = "HOLE FRAGMENT EXPR"
 
-replaceFragment ::
-    EntityId -> Int ->
-    Ann (Input.Payload m IsFragment) # V.Term ->
-    Ann (Input.Payload m ()) # V.Term
-replaceFragment parentEntityId idxInParent (Ann pl bod) =
-    case pl ^. Input.userData of
-    IsFragment ->
-        V.LVar fragmentVar & V.BLeaf
-        & Ann (pl & Input.entityId .~ EntityId.ofFragmentUnder idxInParent parentEntityId & Input.userData .~ ())
-    NotFragment ->
-        htraverse
-        ( \case
-            HWitness V.W_Term_Term ->
-                \x ->
-                do
-                    i <- Lens.use id
-                    id += 1
-                    replaceFragment (pl ^. Input.entityId) i x & pure
-            HWitness V.W_Term_HCompose_Prune_Type ->
-                pure . (hflipped %~ hmap (const (Input.userData .~ ())))
-        ) bod
-        & (`State.evalState` (0 :: Int))
-        & Ann (pl & Input.userData .~ ())
+-- replaceFragment ::
+--     EntityId -> Int ->
+--     Ann (Input.Payload m IsFragment) # V.Term ->
+--     Ann (Input.Payload m ()) # V.Term
+-- replaceFragment parentEntityId idxInParent (Ann pl bod) =
+--     case pl ^. Input.userData of
+--     IsFragment ->
+--         V.LVar fragmentVar & V.BLeaf
+--         & Ann (pl & Input.entityId .~ EntityId.ofFragmentUnder idxInParent parentEntityId & Input.userData .~ ())
+--     NotFragment ->
+--         htraverse
+--         ( \case
+--             HWitness V.W_Term_Term ->
+--                 \x ->
+--                 do
+--                     i <- Lens.use id
+--                     id += 1
+--                     replaceFragment (pl ^. Input.entityId) i x & pure
+--             HWitness V.W_Term_HCompose_Prune_Type ->
+--                 pure . (hflipped %~ hmap (const (Input.userData .~ ())))
+--         ) bod
+--         & (`State.evalState` (0 :: Int))
+--         & Ann (pl & Input.userData .~ ())
 
-newtype Foo f a h = Foo { getFoo :: f (Ann a h) }
+-- newtype Foo f a h = Foo { getFoo :: f (Ann a h) }
 
-emplaceInHoles ::
-    forall f a.
-    Applicative f =>
-    (a # V.Term -> f (Ann a # V.Term)) ->
-    Ann a # V.Term -> [f (Ann a # V.Term)]
-emplaceInHoles replaceHole =
-    map fst . filter snd . (`runStateT` False) . go
-    where
-        go :: Ann a # V.Term -> StateT Bool [] (f (Ann a # V.Term))
-        go oldVal@(Ann x bod) =
-            do
-                alreadyReplaced <- State.get
-                if alreadyReplaced
-                    then pure (pure oldVal)
-                    else
-                        case bod of
-                        V.BLeaf V.LHole ->
-                            join $ lift
-                                [ replace x
-                                , pure (pure oldVal)
-                                ]
-                        V.BApp (V.App (Ann f (V.BLeaf V.LHole)) arg@(Ann _ (V.BLeaf V.LHole))) ->
-                            join $ lift
-                                [ replace f
-                                    <&> fmap (Ann x . V.BApp . (`V.App` arg))
-                                , pure (pure oldVal)
-                                ]
-                        _ ->
-                            htraverse
-                            ( \case
-                                HWitness V.W_Term_Term -> fmap Foo . go
-                                HWitness V.W_Term_HCompose_Prune_Type -> pure . Foo . pure
-                            ) bod
-                            <&> htraverse (const getFoo)
-                            <&> Lens.mapped %~ Ann x
-        replace x = replaceHole x <$ State.put True
+-- emplaceInHoles ::
+--     forall f a.
+--     Applicative f =>
+--     (a # V.Term -> f (Ann a # V.Term)) ->
+--     Ann a # V.Term -> [f (Ann a # V.Term)]
+-- emplaceInHoles replaceHole =
+--     map fst . filter snd . (`runStateT` False) . go
+--     where
+--         go :: Ann a # V.Term -> StateT Bool [] (f (Ann a # V.Term))
+--         go oldVal@(Ann x bod) =
+--             do
+--                 alreadyReplaced <- State.get
+--                 if alreadyReplaced
+--                     then pure (pure oldVal)
+--                     else
+--                         case bod of
+--                         V.BLeaf V.LHole ->
+--                             join $ lift
+--                                 [ replace x
+--                                 , pure (pure oldVal)
+--                                 ]
+--                         V.BApp (V.App (Ann f (V.BLeaf V.LHole)) arg@(Ann _ (V.BLeaf V.LHole))) ->
+--                             join $ lift
+--                                 [ replace f
+--                                     <&> fmap (Ann x . V.BApp . (`V.App` arg))
+--                                 , pure (pure oldVal)
+--                                 ]
+--                         _ ->
+--                             htraverse
+--                             ( \case
+--                                 HWitness V.W_Term_Term -> fmap Foo . go
+--                                 HWitness V.W_Term_HCompose_Prune_Type -> pure . Foo . pure
+--                             ) bod
+--                             <&> htraverse (const getFoo)
+--                             <&> Lens.mapped %~ Ann x
+--         replace x = replaceHole x <$ State.put True
 
 -- mkResultValFragment ::
 --     UVar # T.Type ->

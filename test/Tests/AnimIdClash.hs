@@ -76,7 +76,7 @@ testFragment =
                     { Sugar._fExpr = Stub.litNum 5
                     , Sugar._fHeal = error "Not Implemented" -- not necessary for test!
                     , Sugar._fTypeMismatch = Nothing
-                    , Sugar._fOptions = pure []
+                    , Sugar._fOptions = const (pure [])
                     } & Stub.expr
                 )
                 & annotation . Sugar.plEntityId .~ fragEntityId

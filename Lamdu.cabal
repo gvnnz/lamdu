@@ -345,7 +345,6 @@ Library
                   , Lamdu.GUI.Expr.GetVarEdit
                   , Lamdu.GUI.Expr.IfElseEdit
                   , Lamdu.GUI.Expr.HoleEdit
-                  , Lamdu.GUI.Expr.HoleEdit.ResultGroups
                   , Lamdu.GUI.Expr.HoleEdit.ResultWidget
                   , Lamdu.GUI.Expr.HoleEdit.SearchArea
                   , Lamdu.GUI.Expr.HoleEdit.ValTerms

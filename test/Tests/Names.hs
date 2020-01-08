@@ -29,7 +29,7 @@ instance Walk.MonadNaming (CollectNames name) where
     type IM (CollectNames name) = Identity
     opGetName _ _ x = x <$ tell [x]
     opWithName _ _ x = x <$ liftCPS (tell [x])
-    opRun = pure (pure . fst . runWriter . runCollectNames)
+    opRun = pure (Walk.Run (pure . fst . runWriter . runCollectNames))
 
 test :: Test
 test =

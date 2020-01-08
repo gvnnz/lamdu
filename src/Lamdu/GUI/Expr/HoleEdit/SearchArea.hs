@@ -17,7 +17,7 @@ import qualified GUI.Momentu.Align as Align
 import           GUI.Momentu.Animation (AnimId)
 import qualified GUI.Momentu.Draw as MDraw
 import qualified GUI.Momentu.Element as Element
-import           GUI.Momentu.EventMap (EventMap)
+-- import           GUI.Momentu.EventMap (EventMap)
 import qualified GUI.Momentu.EventMap as E
 import           GUI.Momentu.Glue ((/-/))
 import qualified GUI.Momentu.Glue as Glue
@@ -30,7 +30,7 @@ import qualified GUI.Momentu.Widgets.Menu as Menu
 import qualified GUI.Momentu.Widgets.Menu.Search as SearchMenu
 import qualified GUI.Momentu.Widgets.Spacer as Spacer
 import qualified GUI.Momentu.Widgets.TextEdit as TextEdit
-import           Hyper
+-- import           Hyper
 import qualified Lamdu.CharClassification as Chars
 import           Lamdu.Config (Config)
 import qualified Lamdu.Config as Config
@@ -52,7 +52,7 @@ import qualified Lamdu.I18N.CodeUI as Texts
 import qualified Lamdu.I18N.Name as Texts
 import           Lamdu.Name (Name)
 import qualified Lamdu.Sugar.Lens as SugarLens
-import qualified Lamdu.Sugar.Parens as AddParens
+-- import qualified Lamdu.Sugar.Parens as AddParens
 import qualified Lamdu.Sugar.Types as Sugar
 
 import           Lamdu.Prelude
@@ -95,21 +95,21 @@ fdConfig env = FocusDelegator.Config
 --             & ResultWidget.make ctx (rId result)
 --                 (res ^. Sugar.holeResultPick)
 
-postProcessSugar ::
-    AddParens.MinOpPrec ->
-    Annotated (Sugar.Payload Name i o ()) (Sugar.Binder Name i o) ->
-    Annotated (Sugar.Payload Name i o ExprGui.Payload) (Sugar.Binder Name i o)
-postProcessSugar minOpPrec binder =
-    AddParens.addToBinderWith minOpPrec binder
-    & hflipped %~ hmap (\_ -> Lens._Wrapped %~ pl)
-    where
-        pl (x, needParens, sugarPl) =
-            ExprGui.Payload
-            { ExprGui._plHiddenEntityIds = []
-            , ExprGui._plNeedParens = needParens == AddParens.NeedsParens
-            , ExprGui._plMinOpPrec = x
-            }
-            <$ sugarPl
+-- postProcessSugar ::
+--     AddParens.MinOpPrec ->
+--     Annotated (Sugar.Payload Name i o ()) (Sugar.Binder Name i o) ->
+--     Annotated (Sugar.Payload Name i o ExprGui.Payload) (Sugar.Binder Name i o)
+-- postProcessSugar minOpPrec binder =
+--     AddParens.addToBinderWith minOpPrec binder
+--     & hflipped %~ hmap (\_ -> Lens._Wrapped %~ pl)
+--     where
+--         pl (x, needParens, sugarPl) =
+--             ExprGui.Payload
+--             { ExprGui._plHiddenEntityIds = []
+--             , ExprGui._plNeedParens = needParens == AddParens.NeedsParens
+--             , ExprGui._plMinOpPrec = x
+--             }
+--             <$ sugarPl
 
 -- makeResultOption ::
 --     (Monad i, Monad o, Has (MomentuTexts.Texts Text) env) =>
@@ -147,13 +147,13 @@ makeInferredTypeAnnotation ann animId =
     <&> (^. Align.tValue)
     & Reader.local (Element.animIdPrefix .~ animId)
 
--- Filter out events which should be taken by search term event map instead.
-filterSearchTermEvents :: (Text -> Bool) -> Text -> EventMap a -> EventMap a
-filterSearchTermEvents allowedTerms searchTerm
-    | Text.null searchTerm =
-        E.filterChars (`elem` Chars.operator)
-    | otherwise =
-        E.filterChars (not . allowedTerms . (searchTerm <>) . Text.singleton)
+-- -- Filter out events which should be taken by search term event map instead.
+-- filterSearchTermEvents :: (Text -> Bool) -> Text -> EventMap a -> EventMap a
+-- filterSearchTermEvents allowedTerms searchTerm
+--     | Text.null searchTerm =
+--         E.filterChars (`elem` Chars.operator)
+--     | otherwise =
+--         E.filterChars (not . allowedTerms . (searchTerm <>) . Text.singleton)
 
 data AnnotationMode = WithAnnotation | WithoutAnnotation
 
@@ -244,7 +244,7 @@ make annMode mkOptions pl allowedTerms widgetIds =
                 (Text.length txt /= 1 || Text.any (`notElem` Chars.operator) txt)
                 && allowedTerms txt
             }
-        filteredOptions opts ctx = undefined
+        filteredOptions _opts _ctx = undefined
             -- ResultGroups.makeAll opts ctx
             -- <&> Lens.mapped %~ makeResultOption pl ctx
             -- <&> Lens.mapped . Menu.optionWidgets . Align.tValue . Widget.eventMapMaker . Lens.mapped %~

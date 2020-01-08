@@ -5,7 +5,6 @@
 module Tests.Sugar where
 
 import qualified Control.Lens as Lens
-import qualified Data.List.Class as List
 import qualified Data.Property as Property
 import           Hyper.Combinator.Ann (Annotated)
 import qualified Lamdu.Annotations as Annotations
@@ -151,35 +150,35 @@ testInline =
     testSugarActions "let-item-inline.json" [inline, verify]
     & testCase "inline"
     where
-        inline workArea =
-            do
-                yOption <-
-                    letItem ^. lBody . hVal . _BinderExpr . _BodyHole
-                    . holeOptions
-                    >>= findM isY
-                    <&> fromMaybe (error "expected option")
-                mkResult <-
-                    yOption ^. hoResults & List.runList
-                    <&>
-                    \case
-                    List.Cons (_, x) _ -> x
-                    List.Nil -> error "expected Cons"
-                result <- mkResult
-                result ^. holeResultPick
-                _ <-
-                    result ^?! holeResultConverted . hVal . _BinderExpr
-                    . _BodyGetVar . _GetBinder . bvInline . _InlineVar
-                pure ()
-            where
-                letItem =
-                    workArea ^?!
-                    replBody . _BodyLam . lamFunc . fBody .
-                    hVal . _BinderLet
-                isY option =
-                    option ^. hoSugaredBaseExpr
-                    <&> Lens.has
-                    (hVal . _BinderExpr . _BodyGetVar . _GetBinder .
-                        bvForm . _GetLet)
+        inline _ = error "TODO"
+            -- do
+            --     yOption <-
+            --         letItem ^. lBody . hVal . _BinderExpr . _BodyHole
+            --         . holeOptions
+            --         >>= findM isY
+            --         <&> fromMaybe (error "expected option")
+            --     mkResult <-
+            --         yOption ^. hoResults & List.runList
+            --         <&>
+            --         \case
+            --         List.Cons (_, x) _ -> x
+            --         List.Nil -> error "expected Cons"
+            --     result <- mkResult
+            --     result ^. holeResultPick
+            --     _ <-
+            --         result ^?! holeResultConverted . hVal . _BinderExpr
+            --         . _BodyGetVar . _GetBinder . bvInline . _InlineVar
+            --     pure ()
+            -- where
+            --     letItem =
+            --         workArea ^?!
+            --         replBody . _BodyLam . lamFunc . fBody .
+            --         hVal . _BinderLet
+            --     isY option =
+            --         option ^. hoSugaredBaseExpr
+            --         <&> Lens.has
+            --         (hVal . _BinderExpr . _BodyGetVar . _GetBinder .
+            --             bvForm . _GetLet)
         verify workArea
             | Lens.has afterInline workArea = pure ()
             | otherwise = fail "Expected inline result"

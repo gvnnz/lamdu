@@ -62,7 +62,7 @@ import qualified Lamdu.Calc.Term as V
 -- import qualified Lamdu.Sugar.Config as Config
 -- import           Lamdu.Sugar.Convert.Binder (convertBinder)
 -- import qualified Lamdu.Sugar.Convert.Completions as Completions
-import           Lamdu.Sugar.Convert.Expression.Actions (addActions, convertPayload)
+import           Lamdu.Sugar.Convert.Expression.Actions (addActions) -- , convertPayload)
 -- import           Lamdu.Sugar.Convert.Hole.ResultScore (resultScore)
 -- import qualified Lamdu.Sugar.Convert.Hole.Suggest as Suggest
 import qualified Lamdu.Sugar.Convert.Input as Input
@@ -74,7 +74,7 @@ import           Lamdu.Sugar.Types
 -- import           Revision.Deltum.Hyper (Write(..))
 -- import           Revision.Deltum.IRef (IRef)
 -- import qualified Revision.Deltum.IRef as IRef
-import           Revision.Deltum.Transaction (Transaction)
+-- import           Revision.Deltum.Transaction (Transaction)
 -- import qualified Revision.Deltum.Transaction as Transaction
 -- import           System.Random (random)
 -- import qualified System.Random.Extended as Random
@@ -82,7 +82,7 @@ import           Revision.Deltum.Transaction (Transaction)
 
 import           Lamdu.Prelude
 
-type T = Transaction
+-- type T = Transaction
 
 -- type Preconversion m a =
 --     Ann (Input.Payload m a) # V.Term ->
@@ -94,7 +94,7 @@ convert ::
     (Monad m, Monoid a) =>
     ConvertM.PositionInfo -> Input.Payload m a # V.Term ->
     ConvertM m (ExpressionU m a)
-convert posInfo holePl =
+convert _posInfo holePl =
     undefined
     -- mkOptions posInfo holeResultProcessor holePl
     -- <&> Lens.mapped . Lens.mapped %~ snd
