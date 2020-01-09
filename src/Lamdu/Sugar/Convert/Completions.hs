@@ -1,12 +1,14 @@
 -- | Common completions for holes and fragments
 
-{-# LANGUAGE TypeFamilies, TypeOperators #-}
+{-# LANGUAGE TypeFamilies, TypeOperators, TupleSections #-}
 module Lamdu.Sugar.Convert.Completions
-    ( suggestForType
+    ( suggestForType, querySuggesteds
     , suggestForTypeObvious, suggestForTypeUTermWithoutSplit, suggestCaseWith
     ) where
 
 import qualified Control.Lens as Lens
+import           Control.Monad.State
+import           Control.Monad.Transaction (MonadTransaction)
 import           Hyper
 import           Hyper.Infer (InferResult, inferResult)
 import           Hyper.Type.AST.FuncType
@@ -18,11 +20,73 @@ import           Hyper.Unify.New (newUnbound, newTerm)
 import           Hyper.Unify.Term
 import qualified Lamdu.Calc.Term as V
 import qualified Lamdu.Calc.Type as T
+import           Lamdu.Sugar.Internal (InternalName, nameWithContext, nameWithoutContext, taggedName)
+import qualified Lamdu.Sugar.Types as Sugar
 
 import           Lamdu.Prelude
 
 -- | Term with unifiable type annotations
 type TypedTerm m = Ann (InferResult (UVarOf m)) # V.Term
+
+lamRecordParams :: V.Var -> Ann a # HCompose Prune T.Type -> [InternalName]
+lamRecordParams param typ =
+    typ ^?
+    hVal . hcomposed _Unpruned . T._TRecord . _HCompose
+    & maybe [] goRow
+    where
+        goRow row =
+            case row ^? hVal . hcomposed _Unpruned of
+            Just (T.RExtend (V.RowExtend tag _ rest)) ->
+                nameWithContext param tag : goRow (rest ^. _HCompose)
+            _ -> []
+
+compositeTagNames ::
+    Lens.ATraversal' (V.Term # Ann a) (V.RowExtend T.Tag V.Term V.Term # Ann a) ->
+    Ann a # V.Term ->
+    [InternalName]
+compositeTagNames cons term =
+    case term ^? hVal . Lens.cloneTraversal cons of
+    Nothing -> []
+    Just (RowExtend tag _ rest) -> nameWithoutContext tag : compositeTagNames cons rest
+
+querySuggesteds ::
+    MonadTransaction n i =>
+    Ann a # V.Term ->
+    StateT (Sugar.Queries InternalName i) i Sugar.Priority
+querySuggesteds term =
+    StateT $
+    \queries ->
+    let queryConsume l x =
+            case queries ^. Lens.cloneLens l of
+            Nothing -> pure (Sugar.PriorityAvoid, queries)
+            Just q -> q x <&> (, queries & Lens.cloneLens l .~ Nothing)
+        queryConsumeAny l mkName =
+            case queries ^. Lens.cloneLens l of
+            Sugar.QueryNone -> pure (Sugar.PriorityAvoid, queries)
+            Sugar.QueryTypeDirected q -> mkName >>= q <&> (, queries)
+            Sugar.QueryAny q ->
+                do
+                    x <- mkName
+                    q x <&>
+                        (, queries
+                            & Lens.cloneLens l . Sugar._QueryAny . Lens.imapped . Lens.index x
+                            .~ pure Sugar.PriorityAvoid
+                        )
+    in
+    case term ^. hVal of
+    V.BLam (V.TypedLam param typ _) -> queryConsume Sugar.qLam (lamRecordParams param typ)
+    V.BLeaf V.LRecEmpty -> queryConsume Sugar.qRecord []
+    V.BRecExtend{} -> queryConsume Sugar.qRecord (compositeTagNames V._BRecExtend term)
+    V.BLeaf V.LAbsurd -> queryConsume Sugar.qCase []
+    V.BCase{} -> queryConsume Sugar.qCase (compositeTagNames V._BCase term)
+    V.BGetField (V.GetField _ tag) -> queryConsumeAny Sugar.qGetField (pure (nameWithoutContext tag))
+    V.BInject (V.Inject tag _) -> queryConsumeAny Sugar.qInject (pure (nameWithoutContext tag))
+    V.BToNom (V.ToNom nom _) -> queryConsumeAny Sugar.qNom (taggedName nom)
+    V.BApp{} -> error "Suggest shouldn't suggest apply"
+    V.BLeaf V.LHole -> error "Suggest shouldn't suggest hole"
+    V.BLeaf V.LVar{} -> error "Suggest shouldn't suggest variable"
+    V.BLeaf V.LLiteral{} -> error "Suggest shouldn't suggest literal"
+    V.BLeaf V.LFromNom{} -> error "Suggest shouldn't suggest from-nom"
 
 lookupBody :: Unify f t => UVarOf f # t -> f (Maybe (t # UVarOf f))
 lookupBody x = semiPruneLookup x <&> (^? _2 . _UTerm . uBody)

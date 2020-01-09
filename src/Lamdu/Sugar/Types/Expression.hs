@@ -42,6 +42,8 @@ module Lamdu.Sugar.Types.Expression
     , Composite(..), cItems, cPunnedItems, cAddItem, cTail
     , Case(..), cKind, cBody
     , Queries(..), qLam, qRecord, qGetField, qCase, qInject, qNom, qLocal, qGlobal
+    , Query(..), _QueryTypeDirected, _QueryAny, _QueryNone
+    , Priority(..), _PriorityExactMatch, _PriorityPrefix, _PriorityOther, _PriorityAvoid
     ) where
 
 import qualified Control.Lens as Lens
@@ -97,18 +99,32 @@ data HoleOption name i o = HoleOption
     , _holeOptionPick :: o ()
     } deriving Generic
 
--- TODO: nicer sum type, for now minBound is rule-out
-type Priority = Int
+data Priority
+    = PriorityExactMatch
+    | PriorityPrefix
+    | PriorityOther Int
+    | PriorityAvoid
+    deriving (Eq, Ord, Show)
+
+-- Allows specifying whether we only want completions that are type directed,
+-- or whether we want to filter all possible names for a query type.
+-- For example, for queries "" or "a" the GUI wants to suggest type-directed injects,
+-- but for query "a:" in want name directed injects.
+data Query a
+    = QueryTypeDirected a
+    | QueryAny a
+    | QueryNone
+    deriving (Functor, Foldable, Traversable)
 
 data Queries name i = Queries
     { _qLam      :: Maybe ([name] -> i Priority)
     , _qRecord   :: Maybe ([name] -> i Priority)
     , _qCase     :: Maybe ([name] -> i Priority)
-    , _qGetField :: Maybe (name -> i Priority)
-    , _qInject   :: Maybe (name -> i Priority)
-    , _qNom      :: Maybe (name -> i Priority)
     , _qLocal    :: Maybe (name -> i Priority)
     , _qGlobal   :: Maybe (name -> i Priority)
+    , _qNom      :: Query (name -> i Priority)
+    , _qGetField :: Query (name -> i Priority)
+    , _qInject   :: Query (name -> i Priority)
     }
 
 data Hole name i o = Hole
@@ -243,6 +259,8 @@ Lens.makePrisms ''Binder
 Lens.makePrisms ''Body
 Lens.makePrisms ''Else
 Lens.makePrisms ''InjectContent
+Lens.makePrisms ''Priority
+Lens.makePrisms ''Query
 
 traverse makeHTraversableAndBases
     [ ''Assignment, ''AssignPlain, ''Body, ''Binder, ''Case
