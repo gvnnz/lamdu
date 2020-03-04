@@ -139,14 +139,14 @@ data Hole v name i o = Hole
     } deriving Generic
 
 -- An "elif <cond>: <then>" clause in an IfElse expression and the subtree under it
-data ElseIfContent name i o f = ElseIfContent
+data ElseIfContent v name i o f = ElseIfContent
     { _eiScopes :: ChildScopes
-    , _eiContent :: IfElse (EvaluationScopes name i) name i o f
+    , _eiContent :: IfElse v name i o f
     } deriving Generic
 
 data Else v name i o f
     = SimpleElse (Term v name i o f)
-    | ElseIf (ElseIfContent name i o f)
+    | ElseIf (ElseIfContent v name i o f)
     deriving Generic
 
 data IfElse v name i o k = IfElse
