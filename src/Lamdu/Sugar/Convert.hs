@@ -63,7 +63,7 @@ type T = Transaction
 convertDefIBuiltin ::
     (MonadTransaction n m, Monad f) =>
     Pure # T.Scheme -> Definition.FFIName -> DefI f ->
-    m (DefinitionBody InternalName i (T f) a)
+    m (DefinitionBody v InternalName i (T f) a)
 convertDefIBuiltin scheme name defI =
     ConvertType.convertScheme (EntityId.currentTypeOf entityId) scheme
     <&> \typeS ->
@@ -104,7 +104,10 @@ convertInferDefExpr ::
     ) =>
     env -> Anchors.CodeAnchors m ->
     Pure # T.Scheme -> Definition.Expr (Ann (HRef m) # V.Term) -> DefI m ->
-    T m (DefinitionBody InternalName (T m) (T m) (Payload InternalName (T m) (T m) [EntityId]))
+    T m
+    (DefinitionBody
+        (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
+        (Payload InternalName (T m) (T m) [EntityId]))
 convertInferDefExpr env cp defType defExpr defI =
     do
         Load.InferOut valInferred newInferContext <-
@@ -163,7 +166,8 @@ convertDefBody ::
     env -> Anchors.CodeAnchors m ->
     Definition.Definition (Ann (HRef m) # V.Term) (DefI m) ->
     T m
-    (DefinitionBody InternalName (T m) (T m) (Payload InternalName (T m) (T m) [EntityId]))
+    (DefinitionBody (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
+        (Payload InternalName (T m) (T m) [EntityId]))
 convertDefBody env cp (Definition.Definition bod defType defI) =
     case bod of
     Definition.BodyBuiltin builtin -> convertDefIBuiltin defType builtin defI
