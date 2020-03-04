@@ -180,7 +180,8 @@ makeFunction ::
     MkProperty' (T m) (Maybe BinderParamScopeId) ->
     ConventionalParams m -> Ann (Input.Payload m a) # V.Term ->
     ConvertM m
-    (Function InternalName (T m) (T m) # Annotated (ConvertPayload m a))
+    (Function (EvaluationScopes InternalName (T m)) InternalName (T m) (T m) #
+        Annotated (ConvertPayload m a))
 makeFunction chosenScopeProp params funcBody =
     convertBinder funcBody
     <&> mkRes
@@ -273,7 +274,8 @@ convertLam lam exprPl =
                 hmap (const (annotation . pActions . mReplaceParent . Lens._Just %~ (lamParamToHole lam >>)))
 
 useNormalLambda ::
-    Set InternalName -> Function InternalName i o # Annotated a -> Bool
+    Set InternalName ->
+    Function (EvaluationScopes InternalName i) InternalName i o # Annotated a -> Bool
 useNormalLambda paramNames func
     | Set.size paramNames < 2 = True
     | otherwise =
@@ -303,7 +305,7 @@ instance GetParam (Const (NullaryVal InternalName i o))
 
 instance GetParam (Else InternalName i o)
 
-instance GetParam (Function InternalName i o) where
+instance GetParam (Function v InternalName i o) where
 
 instance GetParam (Const (GetVar InternalName o)) where
     getParam = (^? Lens._Wrapped . _GetParam . pNameRef . nrName)
@@ -318,7 +320,8 @@ instance GetParam (Term InternalName i o) where
     getParam x = x ^? _BodyGetVar <&> Const >>= getParam
 
 allParamsUsed ::
-    Set InternalName -> Function InternalName i o # Annotated a -> Bool
+    Set InternalName ->
+    Function (EvaluationScopes InternalName i) InternalName i o # Annotated a -> Bool
 allParamsUsed paramNames func =
     Set.null (paramNames `Set.difference` usedParams)
     where
@@ -353,7 +356,7 @@ markNodeLightParams paramNames =
 instance MarkLightParams (Lens.Const a)
 instance MarkLightParams (Else InternalName i o)
 instance MarkLightParams (Let InternalName i o)
-instance MarkLightParams (Function InternalName i o)
+instance MarkLightParams (Function v InternalName i o)
 
 instance MarkLightParams (Assignment InternalName i o) where
     markLightParams ps (BodyPlain x) = x & apBody %~ markLightParams ps & BodyPlain
