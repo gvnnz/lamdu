@@ -141,7 +141,7 @@ data Hole v name i o = Hole
 -- An "elif <cond>: <then>" clause in an IfElse expression and the subtree under it
 data ElseIfContent name i o f = ElseIfContent
     { _eiScopes :: ChildScopes
-    , _eiContent :: IfElse name i o f
+    , _eiContent :: IfElse (EvaluationScopes name i) name i o f
     } deriving Generic
 
 data Else v name i o f
@@ -149,10 +149,10 @@ data Else v name i o f
     | ElseIf (ElseIfContent name i o f)
     deriving Generic
 
-data IfElse name i o k = IfElse
-    { _iIf :: k :# Term (EvaluationScopes name i) name i o
-    , _iThen :: k :# Term (EvaluationScopes name i) name i o
-    , _iElse :: k :# Else (EvaluationScopes name i) name i o
+data IfElse v name i o k = IfElse
+    { _iIf :: k :# Term v name i o
+    , _iThen :: k :# Term v name i o
+    , _iElse :: k :# Else v name i o
     } deriving Generic
 
 data CompositeItem name i o k = CompositeItem
@@ -203,7 +203,7 @@ data Term v name i o k
     | BodyRecord (Composite name i o k)
     | BodyGetField (GetField v name i o k)
     | BodyCase (Case name i o k)
-    | BodyIfElse (IfElse name i o k)
+    | BodyIfElse (IfElse v name i o k)
     | BodyInject (Inject v name i o k)
     | BodyGetVar (GetVar name o)
     | BodyToNom (Nominal v name i o k)
