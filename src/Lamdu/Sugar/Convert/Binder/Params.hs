@@ -628,9 +628,9 @@ mkVarInfo (Ann _ TVar{}) = VarGeneric
 mkVarInfo (Ann _ (TInst (TId name tid) _)) = VarNominal tid (name ^. inTag)
 
 mkFuncParam ::
-    Monad m =>
+    (Monad m, Applicative i) =>
     EntityId -> Input.Payload m a # V.Term -> info ->
-    ConvertM m (FuncParam InternalName (T m), info)
+    ConvertM m (FuncParam (EvaluationScopes InternalName i) InternalName, info)
 mkFuncParam entityId lamExprPl info =
     (,)
     <$> Lens.view ConvertM.scAnnotationsMode
