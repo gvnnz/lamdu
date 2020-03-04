@@ -107,7 +107,7 @@ convertInferDefExpr ::
     T m
     (DefinitionBody
         (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
-        (Payload InternalName (T m) (T m) [EntityId]))
+        (Payload (EvaluationScopes InternalName (T m)) InternalName (T m) (T m) [EntityId]))
 convertInferDefExpr env cp defType defExpr defI =
     do
         Load.InferOut valInferred newInferContext <-
@@ -167,7 +167,7 @@ convertDefBody ::
     Definition.Definition (Ann (HRef m) # V.Term) (DefI m) ->
     T m
     (DefinitionBody (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
-        (Payload InternalName (T m) (T m) [EntityId]))
+        (Payload (EvaluationScopes InternalName (T m)) InternalName (T m) (T m) [EntityId]))
 convertDefBody env cp (Definition.Definition bod defType defI) =
     case bod of
     Definition.BodyBuiltin builtin -> convertDefIBuiltin defType builtin defI
@@ -193,7 +193,7 @@ convertRepl ::
     env -> Anchors.CodeAnchors m ->
     T m
     (Repl (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
-        (Payload InternalName (T m) (T m) [EntityId]))
+        (Payload (EvaluationScopes InternalName (T m)) InternalName (T m) (T m) [EntityId]))
 convertRepl env cp =
     do
         defExpr <- ExprLoad.defExpr prop
@@ -275,7 +275,7 @@ convertPaneBody ::
     env -> Anchors.CodeAnchors m -> Anchors.Pane m ->
     T m
     (PaneBody (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
-        (Payload InternalName (T m) (T m) [EntityId]))
+        (Payload (EvaluationScopes InternalName (T m)) InternalName (T m) (T m) [EntityId]))
 convertPaneBody _ _ (Anchors.PaneTag tagId) =
     ExprIRef.readTagData tagId <&>
     \tagData ->
@@ -325,7 +325,7 @@ convertPane ::
     Int -> Anchors.Pane m ->
     T m
     (Pane (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
-        (Payload InternalName (T m) (T m) [EntityId]))
+        (Payload (EvaluationScopes InternalName (T m)) InternalName (T m) (T m) [EntityId]))
 convertPane env cp replEntityId (Property panes setPanes) i pane =
     convertPaneBody env cp pane
     <&> \body -> Pane
@@ -365,7 +365,7 @@ loadPanes ::
     env -> Anchors.CodeAnchors m -> EntityId ->
     T m
     [Pane (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
-        (Payload InternalName (T m) (T m) [EntityId])]
+        (Payload (EvaluationScopes InternalName (T m)) InternalName (T m) (T m) [EntityId])]
 loadPanes env cp replEntityId =
     do
         prop <- Anchors.panes cp ^. Property.mkProperty
@@ -381,7 +381,7 @@ loadWorkArea ::
     env -> Anchors.CodeAnchors m ->
     T m
     (WorkArea (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
-        (Payload InternalName (T m) (T m) [EntityId]))
+        (Payload (EvaluationScopes InternalName (T m)) InternalName (T m) (T m) [EntityId]))
 loadWorkArea env cp =
     do
         repl <- convertRepl env cp

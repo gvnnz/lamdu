@@ -347,9 +347,9 @@ makeAnnotation showAnn pl
         _ -> pure AnnotationNone
 
 convertPayload ::
-    Monad m =>
+    (Monad m, Applicative i) =>
     (Ann.ShowAnnotation, ConvertPayload m a) ->
-    ConvertM m (Payload InternalName (T m) (T m) a)
+    ConvertM m (Payload (EvaluationScopes InternalName i) InternalName (T m) (T m) a)
 convertPayload (showAnn, pl) =
     makeAnnotation showAnn (pl ^. pInput)
     <&>
