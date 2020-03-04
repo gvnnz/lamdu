@@ -496,7 +496,9 @@ mkResult ::
     Preconversion m a -> T m () ->
     Input.Payload m b # V.Term ->
     Ann ((Const a :*: Write m) :*: InferResult UVar) # V.Term ->
-    ConvertM m (T m (HoleResult InternalName (T m) (T m)))
+    ConvertM m
+    ( T m (HoleResult (EvaluationScopes InternalName (T m)) InternalName (T m) (T m))
+    )
 mkResult preConversion updateDeps holePl x =
     do
         sugarContext <- Lens.view id
@@ -538,7 +540,7 @@ toScoredResults ::
     Input.Payload m dummy # V.Term ->
     StateT InferState f (Deps, Ann ((Const a :*: Write m) :*: InferResult UVar) # V.Term) ->
     f ( HoleResultScore
-      , T m (HoleResult InternalName (T m) (T m))
+      , T m (HoleResult (EvaluationScopes InternalName (T m)) InternalName (T m) (T m))
       )
 toScoredResults emptyPl preConversion sugarContext holePl act =
     act
@@ -578,7 +580,7 @@ mkResults ::
     Input.Payload m dummy # V.Term -> Val () ->
     ListT (T m)
     ( HoleResultScore
-    , T m (HoleResult InternalName (T m) (T m))
+    , T m (HoleResult (EvaluationScopes InternalName (T m)) InternalName (T m) (T m))
     )
 mkResults (ResultProcessor emptyPl postProcess preConversion) sugarContext holePl base =
     mkResultVals sugarContext (holePl ^. Input.inferScope) base
