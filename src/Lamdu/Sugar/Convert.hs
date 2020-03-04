@@ -192,7 +192,7 @@ convertRepl ::
     ) =>
     env -> Anchors.CodeAnchors m ->
     T m
-    (Repl InternalName (T m) (T m)
+    (Repl (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
         (Payload InternalName (T m) (T m) [EntityId]))
 convertRepl env cp =
     do
