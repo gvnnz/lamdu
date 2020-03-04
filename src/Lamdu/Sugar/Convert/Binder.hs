@@ -211,7 +211,8 @@ makeAssignment ::
     BinderKind m -> V.Var -> Ann (Input.Payload m a) # V.Term ->
     ConvertM m
     ( Maybe (MkProperty' (T m) PresentationMode)
-    , Annotated (ConvertPayload m a) # Assignment InternalName (T m) (T m)
+    , Annotated (ConvertPayload m a) #
+        Assignment (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
     )
 makeAssignment chosenScopeProp binderKind defVar (Ann pl (V.BLam lam)) =
     do
@@ -310,7 +311,7 @@ instance GetParam (Function v InternalName i o) where
 instance GetParam (Const (GetVar InternalName o)) where
     getParam = (^? Lens._Wrapped . _GetParam . pNameRef . nrName)
 
-instance GetParam (Assignment InternalName i o) where
+instance GetParam (Assignment v InternalName i o) where
     getParam x = x ^? _BodyPlain . apBody >>= getParam
 
 instance GetParam (Binder InternalName i o) where
@@ -358,7 +359,7 @@ instance MarkLightParams (Else InternalName i o)
 instance MarkLightParams (Let InternalName i o)
 instance MarkLightParams (Function v InternalName i o)
 
-instance MarkLightParams (Assignment InternalName i o) where
+instance MarkLightParams (Assignment v InternalName i o) where
     markLightParams ps (BodyPlain x) = x & apBody %~ markLightParams ps & BodyPlain
     markLightParams ps (BodyFunction x) = markLightParams ps x & BodyFunction
 
@@ -381,7 +382,8 @@ convertAssignment ::
     Ann (Input.Payload m a) # V.Term ->
     ConvertM m
     ( Maybe (MkProperty' (T m) PresentationMode)
-    , Annotated (ConvertPayload m a) # Assignment InternalName (T m) (T m)
+    , Annotated (ConvertPayload m a) #
+        Assignment (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
     )
 convertAssignment binderKind defVar expr =
     Lens.view (ConvertM.scConfig . Config.sugarsEnabled . Config.assignmentParameters)
@@ -403,7 +405,8 @@ convertDefinitionBinder ::
     DefI m -> Ann (Input.Payload m a) # V.Term ->
     ConvertM m
     ( Maybe (MkProperty' (T m) PresentationMode)
-    , Annotated (ConvertPayload m a) # Assignment InternalName (T m) (T m)
+    , Annotated (ConvertPayload m a) #
+        Assignment (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
     )
 convertDefinitionBinder defI =
     convertAssignment (BinderKindDef defI) (ExprIRef.globalId defI)
