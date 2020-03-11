@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeApplications, DisambiguateRecordFields, KindSignatures, FlexibleInstances, DefaultSignatures, DataKinds #-}
+{-# LANGUAGE TypeApplications, DisambiguateRecordFields, KindSignatures, FlexibleInstances, DefaultSignatures, DataKinds, TypeFamilies #-}
 module Lamdu.Sugar.Convert.Binder
     ( convertDefinitionBinder, convertLam
     , convertBinder
@@ -65,7 +65,10 @@ convertLet ::
     (Monad m, Monoid a) =>
     Input.Payload m a # V.Term ->
     Redex # Input.Payload m a ->
-    ConvertM m (Annotated (ConvertPayload m a) # Binder InternalName (T m) (T m))
+    ConvertM m
+    ( Annotated (ConvertPayload m a) #
+        Binder (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
+    )
 convertLet pl redex =
     do
         float <- makeFloatLetToOuterScope (pl ^. Input.stored . ExprIRef.setIref) redex
@@ -137,7 +140,10 @@ convertLet pl redex =
 convertBinder ::
     (Monad m, Monoid a) =>
     Ann (Input.Payload m a) # V.Term ->
-    ConvertM m (Annotated (ConvertPayload m a) # Binder InternalName (T m) (T m))
+    ConvertM m
+    ( Annotated (ConvertPayload m a) #
+        Binder (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
+    )
 convertBinder expr@(Ann pl body) =
     Lens.view (ConvertM.scConfig . Config.sugarsEnabled . Config.letExpression) >>=
     \case
@@ -179,7 +185,8 @@ makeFunction ::
     MkProperty' (T m) (Maybe BinderParamScopeId) ->
     ConventionalParams m -> Ann (Input.Payload m a) # V.Term ->
     ConvertM m
-    (Function InternalName (T m) (T m) # Annotated (ConvertPayload m a))
+    (Function (EvaluationScopes InternalName (T m)) InternalName (T m) (T m) #
+        Annotated (ConvertPayload m a))
 makeFunction chosenScopeProp params funcBody =
     convertBinder funcBody
     <&> mkRes
@@ -209,7 +216,8 @@ makeAssignment ::
     BinderKind m -> V.Var -> Ann (Input.Payload m a) # V.Term ->
     ConvertM m
     ( Maybe (MkProperty' (T m) PresentationMode)
-    , Annotated (ConvertPayload m a) # Assignment InternalName (T m) (T m)
+    , Annotated (ConvertPayload m a) #
+        Assignment (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
     )
 makeAssignment chosenScopeProp binderKind defVar (Ann pl (V.BLam lam)) =
     do
@@ -243,10 +251,10 @@ makeAssignment _chosenScopeProp binderKind _defVar expr =
             )
 
 convertLam ::
-    (Monad m, Monoid a) =>
+    (Monad m, Monoid a, v ~ EvaluationScopes InternalName (T m)) =>
     V.TypedLam V.Var (HCompose Prune T.Type) V.Term # Ann (Input.Payload m a) ->
     Input.Payload m a # V.Term ->
-    ConvertM m (ExpressionU m a)
+    ConvertM m (ExpressionU v m a)
 convertLam lam exprPl =
     do
         convParams <- convertLamParams lam exprPl
@@ -272,7 +280,8 @@ convertLam lam exprPl =
                 hmap (const (annotation . pActions . mReplaceParent . Lens._Just %~ (lamParamToHole lam >>)))
 
 useNormalLambda ::
-    Set InternalName -> Function InternalName i o # Annotated a -> Bool
+    Set InternalName ->
+    Function (EvaluationScopes InternalName i) InternalName i o # Annotated a -> Bool
 useNormalLambda paramNames func
     | Set.size paramNames < 2 = True
     | otherwise =
@@ -300,24 +309,25 @@ instance Recursive GetParam where
 instance GetParam (Const (BinderVarRef InternalName o)) where
 instance GetParam (Const (NullaryVal InternalName i o))
 
-instance GetParam (Else InternalName i o)
+instance GetParam (Else v InternalName i o)
 
-instance GetParam (Function InternalName i o) where
+instance GetParam (Function v InternalName i o) where
 
 instance GetParam (Const (GetVar InternalName o)) where
     getParam = (^? Lens._Wrapped . _GetParam . pNameRef . nrName)
 
-instance GetParam (Assignment InternalName i o) where
+instance GetParam (Assignment v InternalName i o) where
     getParam x = x ^? _BodyPlain . apBody >>= getParam
 
-instance GetParam (Binder InternalName i o) where
+instance GetParam (Binder v InternalName i o) where
     getParam x = x ^? _BinderTerm >>= getParam
 
-instance GetParam (Term InternalName i o) where
+instance GetParam (Term v InternalName i o) where
     getParam x = x ^? _BodyGetVar <&> Const >>= getParam
 
 allParamsUsed ::
-    Set InternalName -> Function InternalName i o # Annotated a -> Bool
+    Set InternalName ->
+    Function (EvaluationScopes InternalName i) InternalName i o # Annotated a -> Bool
 allParamsUsed paramNames func =
     Set.null (paramNames `Set.difference` usedParams)
     where
@@ -350,19 +360,19 @@ markNodeLightParams paramNames =
     hVal %~ markLightParams paramNames
 
 instance MarkLightParams (Lens.Const a)
-instance MarkLightParams (Else InternalName i o)
-instance MarkLightParams (Let InternalName i o)
-instance MarkLightParams (Function InternalName i o)
+instance MarkLightParams (Else v InternalName i o)
+instance MarkLightParams (Let v InternalName i o)
+instance MarkLightParams (Function v InternalName i o)
 
-instance MarkLightParams (Assignment InternalName i o) where
+instance MarkLightParams (Assignment v InternalName i o) where
     markLightParams ps (BodyPlain x) = x & apBody %~ markLightParams ps & BodyPlain
     markLightParams ps (BodyFunction x) = markLightParams ps x & BodyFunction
 
-instance MarkLightParams (Binder InternalName i o) where
+instance MarkLightParams (Binder v InternalName i o) where
     markLightParams ps (BinderTerm x) = markLightParams ps x & BinderTerm
     markLightParams ps (BinderLet x) = markLightParams ps x & BinderLet
 
-instance MarkLightParams (Term InternalName i o) where
+instance MarkLightParams (Term v InternalName i o) where
     markLightParams paramNames (BodyGetVar (GetParam n))
         | paramNames ^. Lens.contains (n ^. pNameRef . nrName) =
             n
@@ -377,7 +387,8 @@ convertAssignment ::
     Ann (Input.Payload m a) # V.Term ->
     ConvertM m
     ( Maybe (MkProperty' (T m) PresentationMode)
-    , Annotated (ConvertPayload m a) # Assignment InternalName (T m) (T m)
+    , Annotated (ConvertPayload m a) #
+        Assignment (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
     )
 convertAssignment binderKind defVar expr =
     Lens.view (ConvertM.scConfig . Config.sugarsEnabled . Config.assignmentParameters)
@@ -399,7 +410,8 @@ convertDefinitionBinder ::
     DefI m -> Ann (Input.Payload m a) # V.Term ->
     ConvertM m
     ( Maybe (MkProperty' (T m) PresentationMode)
-    , Annotated (ConvertPayload m a) # Assignment InternalName (T m) (T m)
+    , Annotated (ConvertPayload m a) #
+        Assignment (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
     )
 convertDefinitionBinder defI =
     convertAssignment (BinderKindDef defI) (ExprIRef.globalId defI)

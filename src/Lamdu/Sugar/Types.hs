@@ -33,21 +33,21 @@ import           Lamdu.Sugar.Types.Type as Exported
 
 import           Lamdu.Prelude
 
-data DefinitionExpression name i o a = DefinitionExpression
+data DefinitionExpression v name i o a = DefinitionExpression
     { _deType :: Scheme name
     , _dePresentationMode :: Maybe (i (Property o Meta.PresentationMode))
-    , _deContent :: Annotated a # Assignment name i o
+    , _deContent :: Annotated a # Assignment v name i o
     } deriving Generic
 
 Lens.makeLenses ''DefinitionExpression
 
-instance Functor (DefinitionExpression name i o) where
+instance Functor (DefinitionExpression v name i o) where
     fmap f = deContent . hflipped %~ hmap (\_ -> Lens._Wrapped %~ f)
 
-instance Foldable (DefinitionExpression name i o) where
+instance Foldable (DefinitionExpression v name i o) where
     foldMap f = (^. deContent . hflipped . Lens.to (hfoldMap (\_ (Const x) -> f x)))
 
-instance Traversable (DefinitionExpression name i o) where
+instance Traversable (DefinitionExpression v name i o) where
     traverse f = deContent (htraverseFlipped (\_ -> Lens._Wrapped f))
 
 data DefinitionBuiltin name o = DefinitionBuiltin
@@ -56,17 +56,17 @@ data DefinitionBuiltin name o = DefinitionBuiltin
     , _biType :: Scheme name
     } deriving Generic
 
-data DefinitionBody name i o a
-    = DefinitionBodyExpression (DefinitionExpression name i o a)
+data DefinitionBody v name i o a
+    = DefinitionBodyExpression (DefinitionExpression v name i o a)
     | DefinitionBodyBuiltin (DefinitionBuiltin name o)
     deriving (Functor, Foldable, Traversable, Generic)
 
-data Definition name i o a = Definition
+data Definition v name i o a = Definition
     { _drName :: TagRef name i o
     , _drDefI :: V.Var
     , _drDefinitionState :: Property o Meta.DefinitionState
     , _drEntityId :: EntityId
-    , _drBody :: DefinitionBody name i o a
+    , _drBody :: DefinitionBody v name i o a
     } deriving (Functor, Foldable, Traversable, Generic)
 
 data TagPane name o = TagPane
@@ -76,38 +76,38 @@ data TagPane name o = TagPane
     , _tpSetTexts :: LangId -> DataTag.TextsInLang -> o ()
     } deriving Generic
 
-data PaneBody name i o a
-    = PaneDefinition (Definition name i o a)
+data PaneBody v name i o a
+    = PaneDefinition (Definition v name i o a)
     | PaneTag (TagPane name o)
     deriving (Functor, Foldable, Traversable, Generic)
 
-data Pane name i o a = Pane
-    { _paneBody :: PaneBody name i o a
+data Pane v name i o a = Pane
+    { _paneBody :: PaneBody v name i o a
     , _paneClose :: o EntityId
     , _paneMoveDown :: Maybe (o ())
     , _paneMoveUp :: Maybe (o ())
     } deriving (Functor, Foldable, Traversable, Generic)
 
-data Repl name i o a = Repl
-    { _replExpr :: Annotated a # Binder name i o
+data Repl v name i o a = Repl
+    { _replExpr :: Annotated a # Binder v name i o
     , _replVarInfo :: VarInfo
     , _replResult :: EvalCompletion name o
     } deriving Generic
 
 Lens.makeLenses ''Repl
 
-instance Functor (Repl name i o) where
+instance Functor (Repl v name i o) where
     fmap f = replExpr %~ hflipped %~ hmap (\_ -> Lens._Wrapped %~ f)
 
-instance Foldable (Repl name i o) where
+instance Foldable (Repl v name i o) where
     foldMap f = (^. replExpr . hflipped . Lens.to (hfoldMap (\_ (Const x) -> f x)))
 
-instance Traversable (Repl name i o) where
+instance Traversable (Repl v name i o) where
     traverse f = replExpr (htraverseFlipped (\_ -> Lens._Wrapped f))
 
-data WorkArea name i o a = WorkArea
-    { _waPanes :: [Pane name i o a]
-    , _waRepl :: Repl name i o a
+data WorkArea v name i o a = WorkArea
+    { _waPanes :: [Pane v name i o a]
+    , _waRepl :: Repl v name i o a
     , _waGlobals :: i [NameRef name o]
     } deriving (Functor, Foldable, Traversable, Generic)
 

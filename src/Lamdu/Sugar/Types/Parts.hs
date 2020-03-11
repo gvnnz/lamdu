@@ -35,7 +35,6 @@ module Lamdu.Sugar.Types.Parts
 import qualified Control.Lens as Lens
 import qualified Lamdu.Calc.Type as T
 import           Lamdu.Sugar.Internal.EntityId (EntityId)
-import           Lamdu.Sugar.Types.Eval
 import           Lamdu.Sugar.Types.Tag
 import           Lamdu.Sugar.Types.Type
 
@@ -46,9 +45,9 @@ import           Lamdu.Prelude
 data FuncApplyLimit = UnlimitedFuncApply | AtMostOneFuncApply
     deriving (Eq, Ord, Generic)
 
-data Annotation name i
+data Annotation v name
     = AnnotationType (Annotated EntityId # Type name)
-    | AnnotationVal (EvaluationScopes name i)
+    | AnnotationVal v
     | AnnotationNone
     deriving Generic
 
@@ -76,8 +75,8 @@ data ParamInfo name i o = ParamInfo
     , _piActions :: FuncParamActions name i o
     } deriving Generic
 
-data FuncParam name i = FuncParam
-    { _fpAnnotation :: Annotation name i
+data FuncParam v name = FuncParam
+    { _fpAnnotation :: Annotation v name
     , _fpVarInfo :: VarInfo
     } deriving Generic
 
@@ -112,12 +111,12 @@ data AddFirstParam name i o
     deriving Generic
 
 -- TODO: rename BinderParams -> Params
-data BinderParams name i o
+data BinderParams v name i o
     = -- null param represents a lambda whose parameter's type is inferred
       -- to be the empty record.
       -- This is often used to represent "deferred execution"
-      NullParam (FuncParam name i, NullParamActions o)
-    | Params [(FuncParam name i, ParamInfo name i o)]
+      NullParam (FuncParam v name, NullParamActions o)
+    | Params [(FuncParam v name, ParamInfo name i o)]
     deriving Generic
 
 data VarInfo
@@ -125,8 +124,8 @@ data VarInfo
     | VarGeneric | VarFunction | VarRecord | VarVariant
     deriving (Generic, Eq)
 
-data Payload name i o a = Payload
-    { _plAnnotation :: Annotation name i
+data Payload v name i o a = Payload
+    { _plAnnotation :: Annotation v name
     , _plNeverShrinkTypeAnnotations :: Bool
     , _plActions :: NodeActions name i o
     , _plEntityId :: EntityId

@@ -40,8 +40,9 @@ sugarWorkArea ::
     ) =>
     (Tag -> (IsOperator, TextsInLang)) -> env -> Anchors.CodeAnchors m ->
     T m
-    (Sugar.WorkArea Name (T m) (T m)
-        (Sugar.Payload Name (T m) (T m) (Sugar.ParenInfo, [Sugar.EntityId])))
+    (Sugar.WorkArea (Sugar.EvaluationScopes Name (T m)) Name (T m) (T m)
+        (Sugar.Payload (Sugar.EvaluationScopes Name (T m)) Name (T m) (T m)
+            (Sugar.ParenInfo, [Sugar.EntityId])))
 sugarWorkArea getTagName env cp =
     SugarConvert.loadWorkArea env cp
     >>= report .

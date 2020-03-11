@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 module Lamdu.Sugar.Convert.Case
     ( convert
     , convertAbsurd
@@ -24,23 +25,25 @@ import           Lamdu.Sugar.Internal
 import qualified Lamdu.Sugar.Internal.EntityId as EntityId
 import qualified Lamdu.Sugar.Lens as SugarLens
 import           Lamdu.Sugar.Types
+import           Revision.Deltum.Transaction (Transaction)
 
 import           Lamdu.Prelude
+
+type T = Transaction
 
 -- This is mostly a copy&paste of the Convert.Record module, yuck! DRY
 -- with some abstraction?
 
 convertAbsurd ::
     (Monad m, Monoid a) =>
-    Input.Payload m a # V.Term -> ConvertM m (ExpressionU m a)
+    Input.Payload m a # V.Term -> ConvertM m (ExpressionU v m a)
 convertAbsurd pl =
     Composite.convertEmpty DataOps.case_ pl
     <&> Case LambdaCase
     <&> BodyCase
     >>= addActions (Const ()) pl
 
-_CaseThatIsLambdaCase ::
-    Lens.Prism' (Case name i o # k) (Composite name i o # k)
+_CaseThatIsLambdaCase :: Lens.Prism' (Case v name i o # k) (Composite v name i o # k)
 _CaseThatIsLambdaCase =
     Lens.prism' (Case LambdaCase) $ \case
     Case LambdaCase x -> Just x
@@ -50,7 +53,7 @@ convert ::
     (Monad m, Monoid a) =>
     RowExtend T.Tag V.Term V.Term # Ann (Input.Payload m a) ->
     Input.Payload m a # V.Term ->
-    ConvertM m (ExpressionU m a)
+    ConvertM m (ExpressionU (EvaluationScopes InternalName (T m)) m a)
 convert (RowExtend tag v rest) exprPl =
     do
         valS <-
@@ -69,10 +72,10 @@ convert (RowExtend tag v rest) exprPl =
         mkCase t c r = RowExtend t c r & V.BCase
 
 convertAppliedCase ::
-    (Monad m, Monoid a) =>
+    (Monad m, Monoid a, v ~ EvaluationScopes InternalName (T m)) =>
     V.App V.Term # Ann (Input.Payload m a) ->
-    ExpressionU m a -> ExpressionU m a -> Input.Payload m a # V.Term ->
-    MaybeT (ConvertM m) (ExpressionU m a)
+    ExpressionU v m a -> ExpressionU v m a -> Input.Payload m a # V.Term ->
+    MaybeT (ConvertM m) (ExpressionU v m a)
 convertAppliedCase (V.App _ arg) funcS argS exprPl =
     do
         Lens.view (ConvertM.scConfig . Config.sugarsEnabled . Config.caseWithArgument) >>= guard
@@ -102,7 +105,7 @@ convertAppliedCase (V.App _ arg) funcS argS exprPl =
             <&> annotation . pInput . Input.userData <>~
                 (exprPl ^. Input.userData <> funcS ^. annotation . pInput . Input.userData)
 
-simplifyCaseArg :: ExpressionU m a -> ExpressionU m a
+simplifyCaseArg :: ExpressionU v m a -> ExpressionU v m a
 simplifyCaseArg argS =
     case argS ^. hVal of
     BodySimpleApply (V.App (Ann _ BodyFromNom{}) x)

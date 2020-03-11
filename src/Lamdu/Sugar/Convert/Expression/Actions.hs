@@ -203,7 +203,7 @@ makeActions exprPl =
 
 fragmentAnnIndex ::
     (Applicative f, Lens.Indexable j p) =>
-    p a (f a) -> Lens.Indexed (Term name i o # Annotated j) a (f a)
+    p a (f a) -> Lens.Indexed (Term v name i o # Annotated j) a (f a)
 fragmentAnnIndex = Lens.filteredByIndex (_BodyFragment . fExpr . annotation)
 
 bodyIndex ::
@@ -221,17 +221,17 @@ instance FixReplaceParent (Const a) where
 --   replaces parent of fragment rather than fragment itself (i.e: replaces grandparent).
 
 -- TODO: These instances have a repeating pattern
-instance FixReplaceParent (Binder name i o) where
+instance FixReplaceParent (Binder v name i o) where
     fixReplaceParent setToExpr =
         (hVal . _BinderTerm . typeMismatchPayloads %~ join setToExpr) .
         ((bodyIndex . Lens.filteredByIndex _BinderTerm . fragmentAnnIndex) <. annotation %@~ setToExpr)
 
-instance FixReplaceParent (Term name i o) where
+instance FixReplaceParent (Term v name i o) where
     fixReplaceParent setToExpr =
         (hVal . typeMismatchPayloads %~ join setToExpr) .
         ((bodyIndex . fragmentAnnIndex) <. annotation %@~ setToExpr)
 
-instance FixReplaceParent (Else name i o) where
+instance FixReplaceParent (Else v name i o) where
     fixReplaceParent setToExpr =
         (hVal . _SimpleElse . typeMismatchPayloads %~ join setToExpr) .
         ((bodyIndex . Lens.filteredByIndex _SimpleElse . fragmentAnnIndex) <. annotation%@~ setToExpr)
@@ -239,7 +239,7 @@ instance FixReplaceParent (Else name i o) where
 -- TODO: This is an indexed lens of some sort?
 typeMismatchPayloads ::
     (a -> Identity a) ->
-    Term name i o # Annotated a -> Identity (Term name i o # Annotated a)
+    Term v name i o # Annotated a -> Identity (Term v name i o # Annotated a)
 typeMismatchPayloads =
     _BodyFragment . Lens.filteredBy (fTypeMismatch . Lens._Just) . fExpr .
     annotation
@@ -248,8 +248,8 @@ setChildReplaceParentActions ::
     Monad m =>
     ConvertM m (
         ExprIRef.HRef m # V.Term ->
-        Term name (T m) (T m) # Annotated (ConvertPayload m a) ->
-        Term name (T m) (T m) # Annotated (ConvertPayload m a)
+        Term v name (T m) (T m) # Annotated (ConvertPayload m a) ->
+        Term v name (T m) (T m) # Annotated (ConvertPayload m a)
     )
 setChildReplaceParentActions =
     ConvertM.typeProtectedSetToVal
@@ -293,8 +293,8 @@ subexprPayloads subexprs cullPoints =
 addActionsWith ::
     Monad m =>
     a -> Input.Payload m b # V.Term ->
-    Term InternalName (T m) (T m) # Annotated (ConvertPayload m a) ->
-    ConvertM m (ExpressionU m a)
+    Term v InternalName (T m) (T m) # Annotated (ConvertPayload m a) ->
+    ConvertM m (ExpressionU v m a)
 addActionsWith userData exprPl bodyS =
     do
         actions <- makeActions exprPl
@@ -311,8 +311,8 @@ addActionsWith userData exprPl bodyS =
 addActions ::
     (Monad m, Monoid a, Recursively HFoldable h) =>
     h # Ann (Input.Payload m a) -> Input.Payload m a # V.Term ->
-    Term InternalName (T m) (T m) # Annotated (ConvertPayload m a) ->
-    ConvertM m (ExpressionU m a)
+    Term v InternalName (T m) (T m) # Annotated (ConvertPayload m a) ->
+    ConvertM m (ExpressionU v m a)
 addActions subexprs exprPl bodyS =
     addActionsWith (mconcat (subexprPayloads subexprs (bodyS ^.. childPayloads)))
     exprPl bodyS
@@ -331,7 +331,7 @@ makeTypeAnnotation = convertType . EntityId.ofTypeOf
 makeAnnotation ::
     Monad m =>
     Ann.ShowAnnotation -> Input.Payload m a # V.Term ->
-    ConvertM m (Annotation InternalName (T m))
+    ConvertM m (Annotation (EvaluationScopes InternalName i) InternalName)
 makeAnnotation showAnn pl
     | showAnn ^. Ann.showTypeAlways = makeTypeAnnotationPl pl <&> AnnotationType
     | otherwise =
@@ -346,13 +346,14 @@ makeAnnotation showAnn pl
 convertPayloads ::
     (Monad m, RTraversable h) =>
     Annotated (Ann.ShowAnnotation, ConvertPayload m a) # h ->
-    ConvertM m (Annotated (Payload InternalName (T m) (T m) a) # h)
+    ConvertM m
+    (Annotated (Payload (EvaluationScopes InternalName i) InternalName (T m) (T m) a) # h)
 convertPayloads = htraverseFlipped (const (Lens._Wrapped convertPayload))
 
 convertPayload ::
     Monad m =>
     (Ann.ShowAnnotation, ConvertPayload m a) ->
-    ConvertM m (Payload InternalName (T m) (T m) a)
+    ConvertM m (Payload (EvaluationScopes InternalName i) InternalName (T m) (T m) a)
 convertPayload (showAnn, pl) =
     makeAnnotation showAnn (pl ^. pInput)
     <&>

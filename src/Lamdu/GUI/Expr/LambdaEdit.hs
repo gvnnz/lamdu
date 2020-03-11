@@ -116,7 +116,7 @@ mkLightLambda ::
     , Has (Texts.CodeUI Text) env
     , Glue.HasTexts env
     ) =>
-    Sugar.BinderParams a i o -> Widget.Id ->
+    Sugar.BinderParams v a i o -> Widget.Id ->
     f
     (Maybe (Responsive o) -> Maybe (Widget o) ->
      [Responsive o])
@@ -158,7 +158,7 @@ make ::
     , Has (Texts.Name Text) env
     , Has (Texts.Navigation Text) env
     ) =>
-    Sugar.Expr Sugar.Lambda Name i o ExprGui.Payload ->
+    Sugar.Expr Sugar.Lambda (Sugar.EvaluationScopes Name i) Name i o ExprGui.Payload ->
     GuiM env i o (Responsive o)
 make (Ann (Const pl) lam) =
     do

@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 -- | Test precedences
 module Tests.Precedence where
 
@@ -13,9 +14,9 @@ import           Test.Lamdu.Prelude
 
 infixArgs ::
     Lens.Traversal'
-    (Annotated a # Sugar.Term name i o)
-    ( Annotated a # Sugar.Term name i o
-    , Annotated a # Sugar.Term name i o
+    (Annotated a # Sugar.Term v name i o)
+    ( Annotated a # Sugar.Term v name i o
+    , Annotated a # Sugar.Term v name i o
     )
 infixArgs = hVal . Sugar._BodyLabeledApply . Sugar.aSpecialArgs . Sugar._Operator
 

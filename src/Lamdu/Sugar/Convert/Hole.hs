@@ -92,7 +92,7 @@ type ResultGen m = StateT InferState (ListT (T m))
 convert ::
     (Monad m, Monoid a) =>
     ConvertM.PositionInfo -> Input.Payload m a # V.Term ->
-    ConvertM m (ExpressionU m a)
+    ConvertM m (ExpressionU (EvaluationScopes InternalName (T m)) m a)
 convert posInfo holePl =
     mkOptions posInfo holeResultProcessor holePl
     <&> Lens.mapped . Lens.mapped %~ snd
@@ -120,7 +120,7 @@ mkOption ::
     Monad m =>
     ConvertM.Context m -> ResultProcessor m ->
     Input.Payload m a # V.Term -> Val () ->
-    HoleOption InternalName (T m) (T m)
+    HoleOption (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
 mkOption sugarContext resultProcessor holePl x =
     HoleOption
     { _hoEntityId =
@@ -137,7 +137,7 @@ mkHoleSuggesteds ::
     Monad m =>
     ConvertM.Context m -> ResultProcessor m ->
     Input.Payload m a # V.Term ->
-    [(Val (), HoleOption InternalName (T m) (T m))]
+    [(Val (), HoleOption (EvaluationScopes InternalName (T m)) InternalName (T m) (T m))]
 mkHoleSuggesteds sugarContext resultProcessor holePl =
     holePl ^. Input.inferredTypeUVar
     & Completions.suggestForType
@@ -157,9 +157,9 @@ strip :: Recursively HFunctor h => Ann a # h -> Pure # h
 strip = unwrap (const (^. hVal))
 
 addWithoutDups ::
-    [(Val (), HoleOption i o a)] ->
-    [(Val (), HoleOption i o a)] ->
-    [(Val (), HoleOption i o a)]
+    [(Val (), HoleOption v i o a)] ->
+    [(Val (), HoleOption v i o a)] ->
+    [(Val (), HoleOption v i o a)]
 addWithoutDups new old
     | null nonHoleNew = old
     | otherwise = nonHoleNew ++ filter (not . equivalentToNew) old
@@ -216,7 +216,13 @@ mkOptions ::
     Monad m =>
     ConvertM.PositionInfo -> ResultProcessor m ->
     Input.Payload m a # V.Term ->
-    ConvertM m (T m [(Val (), HoleOption InternalName (T m) (T m))])
+    ConvertM m
+    ( T m
+        [ ( Val ()
+          , HoleOption (EvaluationScopes InternalName (T m)) InternalName (T m) (T m)
+          )
+        ]
+    )
 mkOptions posInfo resultProcessor holePl =
     Lens.view id
     <&>
@@ -336,7 +342,8 @@ loadInfer sugarContext scope v =
 sugar ::
     (Monad m, Monoid a) =>
     ConvertM.Context m -> Input.Payload m dummy # V.Term -> Val a ->
-    T m (Annotated (Payload InternalName (T m) (T m) a) # Binder InternalName (T m) (T m))
+    T m
+    (Expr Binder (EvaluationScopes InternalName (T m)) InternalName (T m) (T m) a)
 sugar sugarContext holePl v =
     do
         (val, inferCtx) <-
@@ -488,7 +495,9 @@ mkResult ::
     Preconversion m a -> T m () ->
     Input.Payload m b # V.Term ->
     Ann ((Const a :*: Write m) :*: InferResult UVar) # V.Term ->
-    ConvertM m (T m (HoleResult InternalName (T m) (T m)))
+    ConvertM m
+    ( T m (HoleResult (EvaluationScopes InternalName (T m)) InternalName (T m) (T m))
+    )
 mkResult preConversion updateDeps holePl x =
     do
         sugarContext <- Lens.view id
@@ -530,7 +539,7 @@ toScoredResults ::
     Input.Payload m dummy # V.Term ->
     StateT InferState f (Deps, Ann ((Const a :*: Write m) :*: InferResult UVar) # V.Term) ->
     f ( HoleResultScore
-      , T m (HoleResult InternalName (T m) (T m))
+      , T m (HoleResult (EvaluationScopes InternalName (T m)) InternalName (T m) (T m))
       )
 toScoredResults emptyPl preConversion sugarContext holePl act =
     act
@@ -570,7 +579,7 @@ mkResults ::
     Input.Payload m dummy # V.Term -> Val () ->
     ListT (T m)
     ( HoleResultScore
-    , T m (HoleResult InternalName (T m) (T m))
+    , T m (HoleResult (EvaluationScopes InternalName (T m)) InternalName (T m) (T m))
     )
 mkResults (ResultProcessor emptyPl postProcess preConversion) sugarContext holePl base =
     mkResultVals sugarContext (holePl ^. Input.inferScope) base

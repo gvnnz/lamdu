@@ -156,7 +156,7 @@ exportPaneEventMap ::
     , Has Config env
     , Has (Texts.Collaboration Text) env
     ) =>
-    env -> ExportActions m -> Sugar.PaneBody name i o dummy ->
+    env -> ExportActions m -> Sugar.PaneBody v name i o dummy ->
     EventMap (IOTrans m GuiState.Update)
 exportPaneEventMap env theExportActions paneBody =
     case paneBody of
@@ -179,8 +179,8 @@ makePaneBodyEdit ::
     , Has (Texts.Name Text) env, Has (Texts.Navigation Text) env
     , Has LangId env, Has (Map LangId Text) env
     ) =>
-    Sugar.Pane Name i o
-    (Sugar.Payload Name i o ExprGui.Payload) ->
+    Sugar.Pane (Sugar.EvaluationScopes Name i) Name i o
+    (Sugar.Payload (Sugar.EvaluationScopes Name i) Name i o ExprGui.Payload) ->
     GuiM env i o (Responsive o)
 makePaneBodyEdit pane =
     case pane ^. Sugar.paneBody of
@@ -204,8 +204,8 @@ makePaneBodyEdit pane =
 makePaneEdit ::
     (Monad m, Language.HasLanguage env) =>
     ExportActions m ->
-    Sugar.Pane Name (T m) (T m)
-    (Sugar.Payload Name (T m) (T m) ExprGui.Payload) ->
+    Sugar.Pane (Sugar.EvaluationScopes Name (T m)) Name (T m) (T m)
+    (Sugar.Payload (Sugar.EvaluationScopes Name (T m)) Name (T m) (T m) ExprGui.Payload) ->
     GuiM env (T m) (T m) (Responsive (IOTrans m))
 makePaneEdit theExportActions pane =
     do

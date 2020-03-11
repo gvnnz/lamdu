@@ -81,7 +81,7 @@ fdConfig env = FocusDelegator.Config
 
 makeRenderedResult ::
     (Monad i, Monad o, Has (MomentuTexts.Texts Text) env) =>
-    Sugar.Payload name i o ExprGui.Payload -> SearchMenu.ResultsContext ->
+    Sugar.Payload v name i o ExprGui.Payload -> SearchMenu.ResultsContext ->
     Result i o ->
     GuiM env i o (Menu.RenderedOption o)
 makeRenderedResult pl ctx result =
@@ -96,8 +96,8 @@ makeRenderedResult pl ctx result =
 
 postProcessSugar ::
     AddParens.MinOpPrec ->
-    Sugar.Expr Sugar.Binder Name i o () ->
-    Sugar.Expr Sugar.Binder Name i o ExprGui.Payload
+    Sugar.Expr Sugar.Binder (Sugar.EvaluationScopes Name i) Name i o () ->
+    Sugar.Expr Sugar.Binder (Sugar.EvaluationScopes Name i) Name i o ExprGui.Payload
 postProcessSugar minOpPrec binder =
     AddParens.addToBinderWith minOpPrec binder
     & hflipped %~ hmap (\_ -> Lens._Wrapped %~ pl)
@@ -111,7 +111,7 @@ postProcessSugar minOpPrec binder =
 
 makeResultOption ::
     (Monad i, Monad o, Has (MomentuTexts.Texts Text) env) =>
-    Sugar.Payload name i o ExprGui.Payload -> SearchMenu.ResultsContext ->
+    Sugar.Payload v name i o ExprGui.Payload -> SearchMenu.ResultsContext ->
     ResultGroup i o -> Menu.Option (GuiM env i o) o
 makeResultOption pl ctx results =
     Menu.Option
@@ -138,7 +138,7 @@ makeInferredTypeAnnotation ::
     , Spacer.HasStdSpacing env, Has (Texts.Name Text) env, Glue.HasTexts env
     , Has (Texts.Code Text) env
     ) =>
-    Sugar.Annotation Name i -> AnimId -> m View
+    Sugar.Annotation v Name -> AnimId -> m View
 makeInferredTypeAnnotation ann animId =
     Annotation.addAnnotationBackground
     <*> TypeView.make (ann ^?! Sugar._AnnotationType)
@@ -165,8 +165,8 @@ make ::
     , SearchMenu.HasTexts env
     ) =>
     AnnotationMode ->
-    i [Sugar.HoleOption Name i o] ->
-    Sugar.Payload Name i o ExprGui.Payload ->
+    i [Sugar.HoleOption (Sugar.EvaluationScopes Name i) Name i o] ->
+    Sugar.Payload (Sugar.EvaluationScopes Name i) Name i o ExprGui.Payload ->
     (Text -> Bool) -> WidgetIds ->
     GuiM env i o (Menu.Placement -> TextWidget o)
 make annMode mkOptions pl allowedTerms widgetIds =

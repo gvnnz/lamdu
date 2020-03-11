@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 module Lamdu.Sugar.PresentationModes
     ( makeLabeledApply
     ) where
@@ -25,11 +26,12 @@ type T = Transaction
 makeLabeledApply ::
     Monad m =>
     Annotated (ConvertPayload m a) # Const (Sugar.BinderVarRef InternalName (T m)) ->
-    [Sugar.AnnotatedArg InternalName (T m) (T m) # Annotated (ConvertPayload m a)] ->
+    [ Sugar.AnnotatedArg v InternalName (T m) (T m) # Annotated (ConvertPayload m a)
+    ] ->
     [Annotated (ConvertPayload m a) # Const (Sugar.GetVar InternalName (T m))] ->
     Input.Payload m a # Term ->
     ConvertM m
-    (Sugar.LabeledApply InternalName (T m) (T m) # Annotated (ConvertPayload m a))
+    (Sugar.LabeledApply v InternalName (T m) (T m) # Annotated (ConvertPayload m a))
 makeLabeledApply func args punnedArgs exprPl =
     do
         presentationMode <- func ^. hVal . Lens._Wrapped . Sugar.bvVar & Anchors.assocPresentationMode & getP
